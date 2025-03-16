@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Arena</title>
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        #controls {
+            text-align: center;
+            margin: 10px;
+            font-family: Arial, sans-serif;
+        }
+        .control-group {
+            margin: 10px 0;
+        }
+        .control-group span {
+            color: #666;
+            margin-right: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background: #2a2a4e;
+            color: #fff;
+            border: 2px solid #00ff88;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #3a3a6e;
+            transform: translateY(-2px);
+        }
+        button.active {
+            background: #3a3a6e;
+            border-color: #ff8800;
+        }
+        .pod-group button {
+            border-color: #ff4488;
+        }
+        .pod-group button.active {
+            border-color: #ff8800;
+            box-shadow: 0 0 10px rgba(255, 136, 0, 0.5);
+        }
+        .floor-group button {
+            border-color: #44ff88;
+        }
+        .floor-group button.active {
+            border-color: #88ff00;
+            box-shadow: 0 0 10px rgba(136, 255, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="control-group">
+            <span>Floor:</span>
+            <div class="floor-group">
+                <button id="metalFloor" class="active">Metal Floor</button>
+                <button id="sandDunes">Sand Dunes</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <span>Pod Type:</span>
+            <div class="pod-group">
+                <button id="defaultPod">Default Pod</button>
+                <button id="speedPod">Speed Pod</button>
+                <button id="heavyPod">Heavy Pod</button>
+                <button id="agilePod" class="active">Agile Pod</button>
+            </div>
+        </div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script type="module">
+        // Wait for DOM to be fully loaded before initializing
+        document.addEventListener('DOMContentLoaded', () => {
+            import('./game/init.js').then(module => {
+                const canvas = document.getElementById('gameCanvas');
+                const game = new module.GameInitializer(canvas);
+                game.start();
+            });
+        });
+    </script>
+</body>
+</html> 
