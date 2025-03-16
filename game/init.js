@@ -2,6 +2,7 @@ import { Pod } from '../pods/Pod.js';
 import Background from '../ambience/background.js';
 import MetalFloor from '../ambience/floors/metalFloor.js';
 import SandDuneFloor from '../ambience/floors/sandDuneFloor.js';
+import DenseSandFloor from '../ambience/floors/denseSandFloor.js';
 import { 
     defaultPodConfig, 
     speedPodConfig, 
@@ -18,6 +19,7 @@ export class GameInitializer {
         // Create floor instances
         this.metalFloor = new MetalFloor();
         this.sandDuneFloor = new SandDuneFloor();
+        this.denseSandFloor = new DenseSandFloor();
         
         // Create pod with agile configuration by default
         this.pod = new Pod(canvas.width, canvas.height, agilePodConfig);
@@ -54,6 +56,13 @@ export class GameInitializer {
             this.background.applyStyles();
             this.gameLoop.updateGameObjects(this.background, this.pod);
             this.updateActiveButtons('sandDunes', 'floor-group');
+        });
+
+        document.getElementById('denseSand').addEventListener('click', () => {
+            this.background = new Background(this.canvas, this.denseSandFloor);
+            this.background.applyStyles();
+            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.updateActiveButtons('denseSand', 'floor-group');
         });
 
         // Handle pod configuration switching
