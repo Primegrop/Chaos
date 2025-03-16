@@ -1,4 +1,5 @@
 import CollisionDetector from '../ColDet/CollisionDetector.js';
+import AudioManager from '../../ambience/audio/AudioManager.js';
 
 export class MainGameLoop {
     constructor(canvas, background, pod, barriers = []) {
@@ -10,6 +11,9 @@ export class MainGameLoop {
         
         // Initialize collision detector
         this.collisionDetector = new CollisionDetector();
+        
+        // Initialize audio manager
+        this.audioManager = new AudioManager();
         
         // Register all barriers for collision detection
         for (const barrier of barriers) {
@@ -67,6 +71,13 @@ export class MainGameLoop {
         
         if (collision.collided) {
             console.log('Collision detected!', collision);
+            
+            // Play wall hit sound with spatial audio
+            this.audioManager.playSpatialSound('wallHit', collision.point.x, collision.point.y, {
+                volume: Math.min(1.0, Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y) / 10),
+                playbackRate: 0.8 + (Math.random() * 0.4) // Random pitch between 0.8 and 1.2
+            });
+            
             // Apply reflection velocity with some energy loss
             this.pod.velocityX = collision.reflection.x * 0.8; // 20% energy loss
             this.pod.velocityY = collision.reflection.y * 0.8;
