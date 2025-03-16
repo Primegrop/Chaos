@@ -1,0 +1,16 @@
+{
+    "walls": [
+        {
+            "x": 0,
+            "y": 0,
+            "direction": "vertical",
+            "length": 30
+        },
+        {
+            "x": 0,
+            "y": 29,
+            "direction": "horizontal",
+            "length": 20
+        }
+    ]
+} 

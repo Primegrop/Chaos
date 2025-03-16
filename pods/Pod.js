@@ -4,14 +4,17 @@ import PodThruster from './components/PodThruster.js';
 import PodTTail from './components/PodTTail.js';
 import { defaultPodConfig } from './configs/podConfigs.js';
 
-class Pod {
+export class Pod {
     constructor(canvasWidth, canvasHeight, config = defaultPodConfig) {
+        // Store the config
+        this.config = config;
+        
         // Core pod properties
         this.x = canvasWidth / 2;
         this.y = canvasHeight / 2;
         this.angle = 0;
-        this.vx = 0;
-        this.vy = 0;
+        this.velocityX = 0;  // Rename vx to velocityX for clarity
+        this.velocityY = 0;  // Rename vy to velocityY for clarity
         
         // Movement properties (from config)
         this.maxSpeed = config.maxSpeed;
@@ -58,8 +61,8 @@ class Pod {
     update(canvasWidth, canvasHeight) {
         // Apply thrust if active
         if (this.isThrusting) {
-            this.vx += this.acceleration * Math.sin(this.angle);
-            this.vy -= this.acceleration * Math.cos(this.angle);
+            this.velocityX += this.acceleration * Math.sin(this.angle);
+            this.velocityY -= this.acceleration * Math.cos(this.angle);
         }
 
         // Apply rotation if active
@@ -77,16 +80,16 @@ class Pod {
         }
 
         // Limit total velocity
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
         if (speed > this.maxSpeed) {
             const scale = this.maxSpeed / speed;
-            this.vx *= scale;
-            this.vy *= scale;
+            this.velocityX *= scale;
+            this.velocityY *= scale;
         }
 
         // Update position based on velocity
-        this.x += this.vx;
-        this.y += this.vy;
+        this.x += this.velocityX;
+        this.y += this.velocityY;
 
         // Update angle based on rotational velocity
         this.angle += this.rotationalVelocity;
@@ -95,8 +98,8 @@ class Pod {
         this.rotationalVelocity *= this.rotationalDamping;
 
         // Apply slight velocity damping
-        this.vx *= 0.995;
-        this.vy *= 0.995;
+        this.velocityX *= 0.995;
+        this.velocityY *= 0.995;
 
         // Wrap around the edges
         if (this.x < 0) this.x = canvasWidth;
@@ -160,6 +163,34 @@ class Pod {
         // Reinitialize with new config
         this.initializeComponents(config);
     }
+
+    getBounds() {
+        // Get the body component for size reference
+        const bodyComponent = this.components.find(c => c instanceof PodBody);
+        if (!bodyComponent) {
+            // Fallback size if no body component found
+            return {
+                x: this.x - 10,
+                y: this.y - 10,
+                width: 20,
+                height: 20
+            };
+        }
+
+        // Use the body's actual dimensions
+        const width = bodyComponent.width;
+        const height = bodyComponent.height;
+        
+        // Use the larger dimension to create a square bounding box
+        const size = Math.max(width, height) * 2; // Multiply by 2 for better collision detection
+        
+        return {
+            x: this.x - size/2,
+            y: this.y - size/2,
+            width: size,
+            height: size
+        };
+    }
 }
 
-export { Pod, PodBody, PodCockpit, PodThruster, PodTTail }; 
+export { PodBody, PodCockpit, PodThruster, PodTTail }; 

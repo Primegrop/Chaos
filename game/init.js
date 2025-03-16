@@ -3,6 +3,7 @@ import Background from '../ambience/background.js';
 import MetalFloor from '../ambience/floors/metalFloor.js';
 import SandDuneFloor from '../ambience/floors/sandDuneFloor.js';
 import DenseSandFloor from '../ambience/floors/denseSandFloor.js';
+import BrickWall from '../ambience/barriers/BrickWall.js';
 import { 
     defaultPodConfig, 
     speedPodConfig, 
@@ -21,6 +22,13 @@ export class GameInitializer {
         this.sandDuneFloor = new SandDuneFloor();
         this.denseSandFloor = new DenseSandFloor();
         
+        // Create barriers
+        this.brickWall = new BrickWall(
+            canvas.width * 0.2,  // 20% from the left
+            canvas.height * 0.1, // 10% from the top
+            '/ambience/barriers/configs/wall1.json'
+        );
+        
         // Create pod with agile configuration by default
         this.pod = new Pod(canvas.width, canvas.height, agilePodConfig);
         this.background = new Background(canvas, this.metalFloor);
@@ -29,7 +37,7 @@ export class GameInitializer {
         this.background.applyStyles();
         
         // Create game loop
-        this.gameLoop = new MainGameLoop(canvas, this.background, this.pod);
+        this.gameLoop = new MainGameLoop(canvas, this.background, this.pod, [this.brickWall]);
         
         // Bind methods
         this.setupEventListeners = this.setupEventListeners.bind(this);
