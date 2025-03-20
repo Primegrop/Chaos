@@ -18,6 +18,12 @@ export const defaultPodConfig = {
         color: 'blue',
         yOffset: -20
     },
+    fuselage: {
+        width: 8,
+        height: 30,
+        color: '#808080',
+        yOffset: 15
+    },
     thruster: {
         width: 10,
         height: 20,
@@ -39,6 +45,11 @@ export const speedPodConfig = {
         height: 45, // Longer for speed
         color: '#ff4444'  // Red color scheme
     },
+    fuselage: {
+        ...defaultPodConfig.fuselage,
+        height: 35,  // Longer fuselage for speed pod
+        color: '#cc0000'
+    },
     thruster: {
         ...defaultPodConfig.thruster,
         width: 8,   // Smaller thruster
@@ -59,6 +70,12 @@ export const heavyPodConfig = {
         width: 20,  // Wider for tank-like appearance
         height: 35, // Shorter but stockier
         color: '#666666'  // Dark gray color scheme
+    },
+    fuselage: {
+        ...defaultPodConfig.fuselage,
+        width: 10,  // Thicker fuselage for heavy pod
+        height: 25, // Shorter but sturdier
+        color: '#444444'
     },
     cockpit: {
         ...defaultPodConfig.cockpit,
@@ -87,6 +104,11 @@ export const agilePodConfig = {
         width: 14,
         height: 38,
         color: '#4488ff'  // Blue color scheme
+    },
+    fuselage: {
+        ...defaultPodConfig.fuselage,
+        height: 28,
+        color: '#2244aa'
     },
     cockpit: {
         ...defaultPodConfig.cockpit,

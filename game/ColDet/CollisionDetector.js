@@ -25,12 +25,29 @@ export default class CollisionDetector {
         this.collidables.delete(object);
     }
 
-    // Calculate reflection vector
+    // Calculate reflection vector using normalized vectors
     calculateReflection(velocity, normal) {
-        const dot = velocity.x * normal.x + velocity.y * normal.y;
+        // First normalize the normal vector (ensure it's a unit vector)
+        const normalLength = Math.sqrt(normal.x * normal.x + normal.y * normal.y);
+        const unitNormal = {
+            x: normal.x / normalLength,
+            y: normal.y / normalLength
+        };
+
+        // Calculate the dot product of velocity and normal
+        const dot = velocity.x * unitNormal.x + velocity.y * unitNormal.y;
+        
+        // Calculate reflection vector: v - 2(v·n)n
+        const reflection = {
+            x: velocity.x - 2 * dot * unitNormal.x,
+            y: velocity.y - 2 * dot * unitNormal.y
+        };
+
+        // Apply speed reduction (40% reduction)
+        const reductionFactor = 0.6;
         return {
-            x: velocity.x - 2 * dot * normal.x,
-            y: velocity.y - 2 * dot * normal.y
+            x: reflection.x * reductionFactor,
+            y: reflection.y * reductionFactor
         };
     }
 
@@ -66,43 +83,47 @@ export default class CollisionDetector {
         }
 
         // Calculate entry times
-        let xEntry = xInvEntry / velocity.x;
-        let xExit = xInvExit / velocity.x;
-        let yEntry = yInvEntry / velocity.y;
-        let yExit = yInvExit / velocity.y;
-
-        // Swap entry/exit times if necessary
-        if (velocity.x === 0) {
-            xEntry = -Infinity;
-            xExit = Infinity;
-        }
-        if (velocity.y === 0) {
-            yEntry = -Infinity;
-            yExit = Infinity;
-        }
+        let xEntry = velocity.x !== 0 ? xInvEntry / velocity.x : (xInvEntry > 0 ? Infinity : -Infinity);
+        let xExit = velocity.x !== 0 ? xInvExit / velocity.x : (xInvExit > 0 ? Infinity : -Infinity);
+        let yEntry = velocity.y !== 0 ? yInvEntry / velocity.y : (yInvEntry > 0 ? Infinity : -Infinity);
+        let yExit = velocity.y !== 0 ? yInvExit / velocity.y : (yInvExit > 0 ? Infinity : -Infinity);
 
         // Find earliest/latest entry times
         const entryTime = Math.max(xEntry, yEntry);
         const exitTime = Math.min(xExit, yExit);
 
         // Check if collision occurred
-        if (entryTime > exitTime || xEntry < 0 && yEntry < 0 || xEntry > 1 || yEntry > 1) {
+        if (entryTime > exitTime || entryTime > 1 || entryTime < 0) {
             return result;
         }
 
         result.collided = true;
         result.time = entryTime;
 
-        // Calculate normal of collided surface
+        // Calculate normal of collided surface and collision point
         if (xEntry > yEntry) {
-            result.normal.x = xInvEntry < 0 ? 1 : -1;
+            // Horizontal collision
+            if (velocity.x > 0) {
+                result.normal.x = -1;  // Hit right side of wall, normal points left
+                result.point.x = target_bounds.x;
+            } else {
+                result.normal.x = 1;   // Hit left side of wall, normal points right
+                result.point.x = target_bounds.x + target_bounds.width;
+            }
+            result.normal.y = 0;
+            result.point.y = mover.y + velocity.y * entryTime;
         } else {
-            result.normal.y = yInvEntry < 0 ? 1 : -1;
+            // Vertical collision
+            if (velocity.y > 0) {
+                result.normal.y = -1;  // Hit bottom, normal points up
+                result.point.y = target_bounds.y;
+            } else {
+                result.normal.y = 1;   // Hit top, normal points down
+                result.point.y = target_bounds.y + target_bounds.height;
+            }
+            result.normal.x = 0;
+            result.point.x = mover.x + velocity.x * entryTime;
         }
-
-        // Calculate collision point
-        result.point.x = mover.x + velocity.x * entryTime;
-        result.point.y = mover.y + velocity.y * entryTime;
 
         return result;
     }

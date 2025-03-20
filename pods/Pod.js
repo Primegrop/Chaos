@@ -2,7 +2,11 @@ import PodBody from './components/PodBody.js';
 import PodCockpit from './components/PodCockpit.js';
 import PodThruster from './components/PodThruster.js';
 import PodTTail from './components/PodTTail.js';
+import { PodFuselage } from './components/PodFuselage.js';
 import { defaultPodConfig } from './configs/podConfigs.js';
+
+// Make sure PodThruster is available in the Pod class scope
+const PodThrusterClass = PodThruster;
 
 export class Pod {
     constructor(canvasWidth, canvasHeight, config = defaultPodConfig) {
@@ -38,6 +42,9 @@ export class Pod {
         // Add default components with their configurations
         this.addComponent(new PodBody(config.body));
         this.addComponent(new PodCockpit(config.cockpit));
+        
+        // Add fuselage
+        this.addComponent(new PodFuselage(config.fuselage || {}));
         
         // Add either T-tail or regular thruster based on config
         if (config.ttail) {
@@ -165,10 +172,10 @@ export class Pod {
     }
 
     getBounds() {
-        // Get the body component for size reference
+        // Get only the body component for dimensions
         const bodyComponent = this.components.find(c => c instanceof PodBody);
+        
         if (!bodyComponent) {
-            // Fallback size if no body component found
             return {
                 x: this.x - 10,
                 y: this.y - 10,
@@ -177,20 +184,38 @@ export class Pod {
             };
         }
 
-        // Use the body's actual dimensions
-        const width = bodyComponent.width;
-        const height = bodyComponent.height;
-        
-        // Use the larger dimension to create a square bounding box
-        const size = Math.max(width, height) * 2; // Multiply by 2 for better collision detection
-        
+        // Use a size that encompasses the full visual height of the pod
+        // Body height = 40, Cockpit offset = -20, Thruster offset = 35 + height(20)
+        // Total visual height ≈ 95 pixels
+        const size = 96; // Round up to nearest even number for easy centering
+
+        // Calculate rotated bounds
+        const cos = Math.cos(this.angle);
+        const sin = Math.sin(this.angle);
+
+        // Calculate corners of the square
+        const corners = [
+            {x: -size/2, y: -size/2},
+            {x: size/2, y: -size/2},
+            {x: size/2, y: size/2},
+            {x: -size/2, y: size/2}
+        ].map(point => ({
+            x: this.x + (point.x * cos - point.y * sin),
+            y: this.y + (point.x * sin + point.y * cos)
+        }));
+
+        // Find the bounds of the rotated square
+        const xs = corners.map(p => p.x);
+        const ys = corners.map(p => p.y);
+
         return {
-            x: this.x - size/2,
-            y: this.y - size/2,
-            width: size,
-            height: size
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(...xs) - Math.min(...xs),
+            height: Math.max(...ys) - Math.min(...ys)
         };
     }
 }
 
+// Export all necessary classes
 export { PodBody, PodCockpit, PodThruster, PodTTail }; 

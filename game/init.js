@@ -24,9 +24,8 @@ export class GameInitializer {
         
         // Create barriers
         this.brickWall = new BrickWall(
-            canvas.width * 0.2,  // 20% from the left
-            canvas.height * 0.1, // 10% from the top
-            '/ambience/barriers/configs/wall1.json'
+            canvas.width * 0.5,  // Center of the screen
+            canvas.height * 0.2  // 20% from the top
         );
         
         // Create pod with agile configuration by default
@@ -55,46 +54,46 @@ export class GameInitializer {
         document.getElementById('metalFloor').addEventListener('click', () => {
             this.background = new Background(this.canvas, this.metalFloor);
             this.background.applyStyles();
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('metalFloor', 'floor-group');
         });
 
         document.getElementById('sandDunes').addEventListener('click', () => {
             this.background = new Background(this.canvas, this.sandDuneFloor);
             this.background.applyStyles();
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('sandDunes', 'floor-group');
         });
 
         document.getElementById('denseSand').addEventListener('click', () => {
             this.background = new Background(this.canvas, this.denseSandFloor);
             this.background.applyStyles();
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('denseSand', 'floor-group');
         });
 
         // Handle pod configuration switching
         document.getElementById('defaultPod').addEventListener('click', () => {
             this.pod = new Pod(this.canvas.width, this.canvas.height, defaultPodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('defaultPod', 'pod-group');
         });
 
         document.getElementById('speedPod').addEventListener('click', () => {
             this.pod = new Pod(this.canvas.width, this.canvas.height, speedPodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('speedPod', 'pod-group');
         });
 
         document.getElementById('heavyPod').addEventListener('click', () => {
             this.pod = new Pod(this.canvas.width, this.canvas.height, heavyPodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('heavyPod', 'pod-group');
         });
 
         document.getElementById('agilePod').addEventListener('click', () => {
             this.pod = new Pod(this.canvas.width, this.canvas.height, agilePodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod);
+            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
             this.updateActiveButtons('agilePod', 'pod-group');
         });
 
