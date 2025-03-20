@@ -25,13 +25,12 @@ export class MainGameLoop {
         this.debugMode = true;
 
         // Build version (increment this when making changes)
-        this.buildVersion = 6;
+        this.buildVersion = 7;
         
         // Collision tracking
         this.recentCollisions = [];
         this.thrustLocked = false;
         this.thrustLockoutEndTime = 0;
-        this.lockoutType = ''; // 'warning' for 2 hits, 'danger' for 3 hits
         
         // Bind the loop method
         this.loop = this.loop.bind(this);
@@ -218,12 +217,9 @@ export class MainGameLoop {
             // Draw lockout warning
             this.ctx.save();
             this.ctx.font = 'bold 20px Arial';
-            this.ctx.fillStyle = this.lockoutType === 'danger' ? '#FF0000' : '#FFA500';
+            this.ctx.fillStyle = '#FFA500'; // Orange warning color
             const timeLeft = Math.ceil((this.thrustLockoutEndTime - performance.now()) / 1000);
-            const message = this.lockoutType === 'danger' ? 
-                `THRUST LOCKED: ${timeLeft}s` : 
-                `WARNING: ${timeLeft}s`;
-            this.ctx.fillText(message, 10, 50);
+            this.ctx.fillText(`WARNING: ${timeLeft}s`, 10, 50);
             this.ctx.restore();
         }
         
@@ -256,8 +252,7 @@ export class MainGameLoop {
     handleRapidCollisions() {
         const now = performance.now();
         const COLLISION_WINDOW = 2000; // 2 second window for rapid collisions
-        const WARNING_LOCKOUT_DURATION = 1000; // 1 second lockout for 2 hits
-        const DANGER_LOCKOUT_DURATION = 3000; // 3 second lockout for 3 hits
+        const LOCKOUT_DURATION = 1000; // 1 second lockout for 2 hits
         
         // Add current collision time
         this.recentCollisions.push(now);
@@ -267,22 +262,11 @@ export class MainGameLoop {
             now - time < COLLISION_WINDOW
         );
         
-        // Check collision count and apply appropriate lockout
+        // Check for two or more collisions
         if (this.recentCollisions.length >= 2 && !this.thrustLocked) {
-            console.log(`${this.recentCollisions.length} collisions detected`);
+            console.log('Two collisions detected - activating warning lockout');
             this.thrustLocked = true;
-            
-            if (this.recentCollisions.length >= 3) {
-                // Three or more hits - full lockout
-                this.thrustLockoutEndTime = now + DANGER_LOCKOUT_DURATION;
-                this.lockoutType = 'danger';
-                console.log('Danger lockout activated');
-            } else {
-                // Two hits - warning lockout
-                this.thrustLockoutEndTime = now + WARNING_LOCKOUT_DURATION;
-                this.lockoutType = 'warning';
-                console.log('Warning lockout activated');
-            }
+            this.thrustLockoutEndTime = now + LOCKOUT_DURATION;
             
             // Stop all pod movement
             this.pod.velocityX = 0;
@@ -291,7 +275,7 @@ export class MainGameLoop {
             // Disable pod thrusting
             this.pod.isThrusting = false;
             
-            // Reset collision counter after applying lockout
+            // Reset collision counter
             this.recentCollisions = [];
         }
     }
@@ -303,7 +287,6 @@ export class MainGameLoop {
             if (now >= this.thrustLockoutEndTime) {
                 console.log('Thrust lockout ended');
                 this.thrustLocked = false;
-                this.lockoutType = '';
                 this.recentCollisions = [];
             }
             return this.thrustLocked;
