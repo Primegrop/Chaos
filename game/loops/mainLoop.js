@@ -38,7 +38,7 @@ export class MainGameLoop {
         this.debugMode = debugMode;
 
         // Build version (increment this when making changes)
-        this.buildVersion = 20;  // Added pre-rendered background optimization
+        this.buildVersion = 21;  // Refactored collision detection to use only broad phase
         
         // Create build version overlay
         this.createBuildVersionOverlay();

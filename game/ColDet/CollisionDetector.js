@@ -51,7 +51,7 @@ export default class CollisionDetector {
         };
     }
 
-    // Swept AABB collision detection
+    // Main collision detection method - uses only broad phase
     detectCollision(moving, velocity, target) {
         const result = new CollisionResult();
         
@@ -123,6 +123,46 @@ export default class CollisionDetector {
             }
             result.normal.x = 0;
             result.point.x = mover.x + velocity.x * entryTime;
+        }
+
+        return result;
+    }
+
+    // Detailed collision detection method (currently unused)
+    detectDetailedCollision(moving, velocity, target) {
+        const result = new CollisionResult();
+        
+        // Get bounding boxes
+        const mover = moving.getBounds();
+        const target_bounds = target.getBounds();
+        
+        // First do broad phase collision check
+        const broadResult = this.detectCollision(moving, velocity, target);
+        if (!broadResult.collided) return result;
+
+        // If we have detailed bounds, use them for precise collision
+        if (moving.getDetailedBounds) {
+            // Get detailed bounds at the potential collision time
+            const detailedBoxes = moving.getDetailedBounds();
+            let earliestTime = 1.0;
+            let closestCollision = null;
+
+            // Check each detailed box for collision
+            for (const box of detailedBoxes) {
+                const boxResult = this.detectCollision(box, velocity, target);
+                if (boxResult.collided && boxResult.time < earliestTime) {
+                    earliestTime = boxResult.time;
+                    closestCollision = boxResult;
+                }
+            }
+
+            // If we found a detailed collision, use it
+            if (closestCollision) {
+                result.collided = true;
+                result.time = closestCollision.time;
+                result.normal = closestCollision.normal;
+                result.point = closestCollision.point;
+            }
         }
 
         return result;
