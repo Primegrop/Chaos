@@ -1,9 +1,11 @@
 import CollisionDetector from '../ColDet/CollisionDetector.js';
 import AudioManager from '../../ambience/audio/AudioManager.js';
 import { Pod } from '../../pods/Pod.js';
+import { calculateSimpleReflection, drawReflectionDebug } from '../VeloReflect/collisionReflectCalc.js';
+import { calculateVectorReflection } from '../VeloReflect/collisionReflectCalc.js';
 
 export class MainGameLoop {
-    constructor(canvas, background, pod, barriers = []) {
+    constructor(canvas, background, pod, barriers = [], debugMode = true) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.background = background;
@@ -22,10 +24,13 @@ export class MainGameLoop {
         }
         
         // Debug mode
-        this.debugMode = true;
+        this.debugMode = debugMode;
 
         // Build version (increment this when making changes)
-        this.buildVersion = 7;
+        this.buildVersion = 19;  // Moved build version to static overlay
+        
+        // Create build version overlay
+        this.createBuildVersionOverlay();
         
         // Collision tracking
         this.recentCollisions = [];
@@ -39,20 +44,33 @@ export class MainGameLoop {
         this.animationFrameId = null;
     }
 
-    drawBuildVersion() {
-        // Save context state
-        this.ctx.save();
-        
-        // Set up text style
-        this.ctx.font = 'bold 20px Arial';
-        this.ctx.fillStyle = '#FF0000';
-        
-        // Position text at top-left corner inside the canvas
-        const text = `Build: ${this.buildVersion}`;
-        this.ctx.fillText(text, 10, 25);
-        
-        // Restore context state
-        this.ctx.restore();
+    createBuildVersionOverlay() {
+        // Create overlay div if it doesn't exist
+        let overlay = document.getElementById('buildVersionOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'buildVersionOverlay';
+            
+            // Style the overlay
+            overlay.style.position = 'fixed';
+            overlay.style.top = '10px';
+            overlay.style.left = '10px';
+            overlay.style.color = '#FF0000';
+            overlay.style.fontFamily = 'Arial, sans-serif';
+            overlay.style.fontSize = '20px';
+            overlay.style.fontWeight = 'bold';
+            overlay.style.zIndex = '1000';
+            overlay.style.pointerEvents = 'none'; // Make it non-interactive
+            
+            // Set the build version text
+            overlay.textContent = `Build: ${this.buildVersion}`;
+            
+            // Add it to the document body
+            document.body.appendChild(overlay);
+        } else {
+            // Update existing overlay
+            overlay.textContent = `Build: ${this.buildVersion}`;
+        }
     }
 
     drawDebugBounds(object, color = 'red') {
@@ -149,47 +167,8 @@ export class MainGameLoop {
                 playbackRate: 0.8 + (Math.random() * 0.4)
             });
             
-            // Apply reflection velocity with increased energy loss for rapid collisions
-            const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-            const energyLoss = Math.min(0.4, speed * 0.1); // More energy loss at higher speeds
-            const restitution = 0.8 - energyLoss;
-            
-            this.pod.velocityX = collision.reflection.x * restitution;
-            this.pod.velocityY = collision.reflection.y * restitution;
-            
-            // Get pod bounds for size-aware repositioning
-            const podBounds = this.pod.getBounds();
-            const podHalfWidth = podBounds.width / 2;
-            const podHalfHeight = podBounds.height / 2;
-            
-            // Position adjustment based on collision normal with safety margin
-            const safetyMargin = 2;
-            if (collision.normal.x !== 0) {
-                // For horizontal collisions
-                this.pod.x = collision.point.x + ((podHalfWidth + safetyMargin) * collision.normal.x);
-            }
-            if (collision.normal.y !== 0) {
-                // For vertical collisions
-                this.pod.y = collision.point.y + ((podHalfHeight + safetyMargin) * collision.normal.y);
-            }
-
-            if (this.debugMode) {
-                // Draw collision point
-                this.ctx.fillStyle = 'red';
-                this.ctx.beginPath();
-                this.ctx.arc(collision.point.x, collision.point.y, 5, 0, Math.PI * 2);
-                this.ctx.fill();
-                
-                // Draw reflection vector
-                this.ctx.strokeStyle = 'green';
-                this.ctx.beginPath();
-                this.ctx.moveTo(collision.point.x, collision.point.y);
-                this.ctx.lineTo(
-                    collision.point.x + collision.reflection.x * 20,
-                    collision.point.y + collision.reflection.y * 20
-                );
-                this.ctx.stroke();
-            }
+            // Handle collision
+            this.handleCollision(collision, this.pod);
         }
         
         // Update and draw pod
@@ -211,10 +190,8 @@ export class MainGameLoop {
             this.ctx.stroke();
         }
 
-        // Draw build version and lockout status if active
-        this.drawBuildVersion();
+        // Draw lockout warning if active
         if (this.thrustLocked) {
-            // Draw lockout warning
             this.ctx.save();
             this.ctx.font = 'bold 20px Arial';
             this.ctx.fillStyle = '#FFA500'; // Orange warning color
@@ -292,5 +269,48 @@ export class MainGameLoop {
             return this.thrustLocked;
         }
         return false;
+    }
+
+    handleCollision(result, pod) {
+        if (!result.collided) return;
+
+        // Get current velocity
+        const velocity = {
+            x: pod.velocityX,
+            y: pod.velocityY
+        };
+
+        // Calculate reflection with energy loss based on speed
+        const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+        const energyLoss = Math.min(0.4, speed * 0.1); // More energy loss at higher speeds
+        const restitution = 0.8 - energyLoss;
+
+        // Calculate reflected velocity
+        const reflection = calculateVectorReflection(velocity, result.normal, restitution);
+        
+        // Apply reflected velocity
+        pod.velocityX = reflection.x;
+        pod.velocityY = reflection.y;
+
+        // Minimal position adjustment to prevent sticking
+        const safetyMargin = 2;
+        if (result.normal.x !== 0) {
+            pod.x += result.normal.x * safetyMargin;
+        }
+        if (result.normal.y !== 0) {
+            pod.y += result.normal.y * safetyMargin;
+        }
+
+        // Debug visualization
+        if (this.debugMode) {
+            console.log('Collision response:', {
+                originalVelocity: velocity,
+                reflectedVelocity: reflection,
+                normal: result.normal,
+                restitution: restitution
+            });
+
+            drawReflectionDebug(this.ctx, result.point, velocity, reflection);
+        }
     }
 } 
