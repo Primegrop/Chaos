@@ -6,9 +6,20 @@ import { calculateVectorReflection } from '../VeloReflect/collisionReflectCalc.j
 
 export class MainGameLoop {
     constructor(canvas, background, pod, barriers = [], debugMode = true) {
+        // Main game canvas
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        
+        // Create and set up background canvas
+        this.bgCanvas = document.createElement('canvas');
+        this.bgCanvas.width = canvas.width;
+        this.bgCanvas.height = canvas.height;
+        this.bgCtx = this.bgCanvas.getContext('2d');
+        
+        // Draw background once
         this.background = background;
+        this.background.draw(this.bgCtx);
+        
         this.pod = pod;
         this.barriers = barriers;
         
@@ -27,7 +38,7 @@ export class MainGameLoop {
         this.debugMode = debugMode;
 
         // Build version (increment this when making changes)
-        this.buildVersion = 19;  // Moved build version to static overlay
+        this.buildVersion = 20;  // Added pre-rendered background optimization
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -97,11 +108,11 @@ export class MainGameLoop {
     }
 
     loop() {
-        // Clear the entire canvas
+        // Clear the game canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw background
-        this.background.draw(this.ctx);
+        // Draw the pre-rendered background
+        this.ctx.drawImage(this.bgCanvas, 0, 0);
         
         // Check thrust lockout status
         const isLocked = this.checkThrustLockout();
@@ -206,7 +217,13 @@ export class MainGameLoop {
 
     // Method to update game objects
     updateGameObjects(background, pod, barriers = this.barriers) {
-        this.background = background;
+        // Update and re-render background if it changed
+        if (background !== this.background) {
+            this.background = background;
+            this.bgCtx.clearRect(0, 0, this.bgCanvas.width, this.bgCanvas.height);
+            this.background.draw(this.bgCtx);
+        }
+        
         this.pod = pod;
         this.barriers = barriers;
         
