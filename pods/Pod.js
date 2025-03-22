@@ -184,10 +184,13 @@ export class Pod {
             };
         }
 
-        // Use a size that encompasses the full visual height of the pod
-        // Body height = 40, Cockpit offset = -20, Thruster offset = 35 + height(20)
-        // Total visual height ≈ 95 pixels
-        const size = 96; // Round up to nearest even number for easy centering
+        // Calculate size to fully encompass all components
+        // Body height = 40
+        // Cockpit offset = -20
+        // Thruster offset = 35 + height(20) = 55
+        // Total height from top to bottom = 75 (20 up + 55 down)
+        // Add safety margin of 4 pixels on each side
+        const size = 112; // Round up to nearest number divisible by 4 for easy centering
 
         // Calculate rotated bounds
         const cos = Math.cos(this.angle);

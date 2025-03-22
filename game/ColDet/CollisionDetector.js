@@ -25,42 +25,113 @@ export default class CollisionDetector {
         this.collidables.delete(object);
     }
 
-    // Calculate reflection vector using normalized vectors
-    calculateReflection(velocity, normal) {
-        // First normalize the normal vector (ensure it's a unit vector)
-        const normalLength = Math.sqrt(normal.x * normal.x + normal.y * normal.y);
-        const unitNormal = {
-            x: normal.x / normalLength,
-            y: normal.y / normalLength
-        };
-
-        // Calculate the dot product of velocity and normal
-        const dot = velocity.x * unitNormal.x + velocity.y * unitNormal.y;
+    // Calculate swept bounds for a rotating object
+    calculateSweptBounds(moving, velocity, rotationalVelocity) {
+        // Get initial and final angles
+        const startAngle = moving.angle;
+        const endAngle = startAngle + rotationalVelocity;
         
-        // Calculate reflection vector: v - 2(v·n)n
-        const reflection = {
-            x: velocity.x - 2 * dot * unitNormal.x,
-            y: velocity.y - 2 * dot * unitNormal.y
-        };
-
-        // Apply speed reduction (40% reduction)
-        const reductionFactor = 0.6;
+        // Calculate more steps for faster rotation
+        const rotationSpeed = Math.abs(rotationalVelocity);
+        const steps = Math.max(
+            20, // minimum steps
+            Math.ceil(rotationSpeed * 20) // more steps for faster rotation
+        );
+        
+        // Track all points including corners and intermediate positions
+        const allPoints = [];
+        
+        // Add points at regular intervals through the rotation
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const angle = startAngle + (rotationalVelocity * t);
+            const corners = this.getRotatedCorners(moving, angle);
+            
+            // Add velocity-adjusted points
+            corners.forEach(point => {
+                allPoints.push({
+                    x: point.x + (velocity.x * t),
+                    y: point.y + (velocity.y * t)
+                });
+            });
+            
+            // Add extra points slightly offset from corners for better edge detection
+            const offset = 2; // Small offset for edge detection
+            corners.forEach(point => {
+                allPoints.push({
+                    x: point.x + (velocity.x * t) + offset,
+                    y: point.y + (velocity.y * t) + offset
+                });
+                allPoints.push({
+                    x: point.x + (velocity.x * t) - offset,
+                    y: point.y + (velocity.y * t) - offset
+                });
+            });
+        }
+        
+        // Calculate bounds with a small safety margin
+        const margin = 2;
+        const xs = allPoints.map(p => p.x);
+        const ys = allPoints.map(p => p.y);
+        
         return {
-            x: reflection.x * reductionFactor,
-            y: reflection.y * reductionFactor
+            x: Math.min(...xs) - margin,
+            y: Math.min(...ys) - margin,
+            width: Math.max(...xs) - Math.min(...xs) + (margin * 2),
+            height: Math.max(...ys) - Math.min(...ys) + (margin * 2)
         };
     }
 
-    // Main collision detection method - uses only broad phase
+    calculateRotatedBounds(moving, angle) {
+        const size = 96; // Same size as in Pod.getBounds()
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        
+        const corners = this.getRotatedCorners(moving, angle);
+        
+        const xs = corners.map(p => p.x);
+        const ys = corners.map(p => p.y);
+        
+        return {
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(...xs) - Math.min(...xs),
+            height: Math.max(...ys) - Math.min(...ys)
+        };
+    }
+
+    getRotatedCorners(moving, angle) {
+        const size = 96;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        
+        return [
+            {x: -size/2, y: -size/2},
+            {x: size/2, y: -size/2},
+            {x: size/2, y: size/2},
+            {x: -size/2, y: size/2}
+        ].map(point => ({
+            x: moving.x + (point.x * cos - point.y * sin),
+            y: moving.y + (point.x * sin + point.y * cos)
+        }));
+    }
+
+    // Modified main collision detection method to use swept bounds
     detectCollision(moving, velocity, target) {
         const result = new CollisionResult();
         
-        // Get bounding boxes
-        const mover = moving.getBounds();
+        // Get swept bounds if object is rotating
+        const useSweptBounds = moving.rotationalVelocity && Math.abs(moving.rotationalVelocity) > 0.01;
+        const mover = useSweptBounds ? 
+            this.calculateSweptBounds(moving, velocity, moving.rotationalVelocity) :
+            moving.getBounds();
+            
         const target_bounds = target.getBounds();
         
-        // If moving away from target, no collision possible
-        if (velocity.x === 0 && velocity.y === 0) return result;
+        // Early exit if no movement
+        if (velocity.x === 0 && velocity.y === 0 && (!moving.rotationalVelocity || Math.abs(moving.rotationalVelocity) < 0.01)) {
+            return result;
+        }
 
         // Calculate entry and exit times for X axis
         let xInvEntry, xInvExit;
@@ -185,14 +256,10 @@ export default class CollisionDetector {
         }
 
         if (collision) {
-            // Calculate reflection
-            const reflection = this.calculateReflection(velocity, collision.normal);
-            
             return {
                 collided: true,
                 point: collision.point,
                 normal: collision.normal,
-                reflection: reflection,
                 time: collision.time
             };
         }

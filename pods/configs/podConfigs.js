@@ -3,8 +3,8 @@ export const defaultPodConfig = {
     // Movement properties
     maxSpeed: 5,
     acceleration: 0.1,
-    rotationAcceleration: 0.005,
-    maxRotationalSpeed: 0.1,
+    rotationAcceleration: 0.003,
+    maxRotationalSpeed: 0.05,
     rotationalDamping: 0.99,
     
     // Component-specific properties
@@ -37,8 +37,8 @@ export const speedPodConfig = {
     ...defaultPodConfig,
     maxSpeed: 8,
     acceleration: 0.15,
-    rotationAcceleration: 0.008,
-    maxRotationalSpeed: 0.15,
+    rotationAcceleration: 0.004,
+    maxRotationalSpeed: 0.075,
     body: {
         ...defaultPodConfig.body,
         width: 12,  // Thinner for speed
@@ -63,8 +63,8 @@ export const heavyPodConfig = {
     ...defaultPodConfig,
     maxSpeed: 4,
     acceleration: 0.08,
-    rotationAcceleration: 0.004,
-    maxRotationalSpeed: 0.08,
+    rotationAcceleration: 0.002,
+    maxRotationalSpeed: 0.04,
     body: {
         ...defaultPodConfig.body,
         width: 20,  // Wider for tank-like appearance
@@ -96,8 +96,8 @@ export const agilePodConfig = {
     ...defaultPodConfig,
     maxSpeed: 6,
     acceleration: 0.12,
-    rotationAcceleration: 0.006,  // Base rotation, will be enhanced by T-tail
-    maxRotationalSpeed: 0.12,     // Base max rotation, will be enhanced by T-tail
+    rotationAcceleration: 0.0035,
+    maxRotationalSpeed: 0.06,
     rotationalDamping: 0.98,
     body: {
         ...defaultPodConfig.body,
