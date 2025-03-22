@@ -1,4 +1,5 @@
 import CollisionDetector from '../ColDet/CollisionDetector.js';
+import { CollisionHandler } from '../ColDet/CollisionHandler.js';
 import AudioManager from '../../ambience/audio/AudioManager.js';
 import { Pod } from '../../pods/Pod.js';
 import { calculateSimpleReflection, drawReflectionDebug } from '../VeloReflect/collisionReflectCalc.js';
@@ -16,6 +17,12 @@ export class MainGameLoop {
         this.bgCanvas.height = canvas.height;
         this.bgCtx = this.bgCanvas.getContext('2d');
         
+        // Create and set up barriers canvas
+        this.barriersCanvas = document.createElement('canvas');
+        this.barriersCanvas.width = canvas.width;
+        this.barriersCanvas.height = canvas.height;
+        this.barriersCtx = this.barriersCanvas.getContext('2d');
+        
         // Draw background once
         this.background = background;
         this.background.draw(this.bgCtx);
@@ -23,8 +30,12 @@ export class MainGameLoop {
         this.pod = pod;
         this.barriers = barriers;
         
-        // Initialize collision detector
+        // Draw barriers once
+        this.preRenderBarriers();
+        
+        // Initialize collision systems
         this.collisionDetector = new CollisionDetector();
+        this.collisionHandler = new CollisionHandler(this.collisionDetector);
         
         // Initialize audio manager
         this.audioManager = new AudioManager();
@@ -33,12 +44,32 @@ export class MainGameLoop {
         for (const barrier of barriers) {
             this.collisionDetector.registerCollidable(barrier);
         }
+
+        // Check and adjust initial pod position if inside any barrier
+        const podBounds = this.pod.getBounds();
+        for (const barrier of barriers) {
+            const barrierBounds = barrier.getBounds();
+            if (this.collisionHandler.isOverlapping(podBounds, barrierBounds)) {
+                // Move pod to center of screen
+                this.pod.x = canvas.width / 2;
+                this.pod.y = canvas.height / 2;
+                
+                // Check if center position is safe
+                const centerPodBounds = this.pod.getBounds();
+                if (this.collisionHandler.isOverlapping(centerPodBounds, barrierBounds)) {
+                    // If center isn't safe, try left side of screen
+                    this.pod.x = 100;
+                    this.pod.y = canvas.height / 2;
+                }
+                break;
+            }
+        }
         
         // Debug mode
         this.debugMode = debugMode;
 
         // Build version (increment this when making changes)
-        this.buildVersion = 21;  // Refactored collision detection to use only broad phase
+        this.buildVersion = 34;  // Added pre-rendered barriers canvas for performance optimization
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -84,11 +115,11 @@ export class MainGameLoop {
         }
     }
 
-    drawDebugBounds(object, color = 'red') {
+    drawDebugBounds(object, color = 'red', context = this.ctx) {
         const bounds = object.getBounds();
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = object instanceof Pod ? 2 : 1;
-        this.ctx.strokeRect(
+        context.strokeStyle = color;
+        context.lineWidth = object instanceof Pod ? 2 : 1;
+        context.strokeRect(
             bounds.x,
             bounds.y,
             bounds.width,
@@ -114,6 +145,9 @@ export class MainGameLoop {
         // Draw the pre-rendered background
         this.ctx.drawImage(this.bgCanvas, 0, 0);
         
+        // Draw the pre-rendered barriers
+        this.ctx.drawImage(this.barriersCanvas, 0, 0);
+        
         // Check thrust lockout status
         const isLocked = this.checkThrustLockout();
         if (isLocked) {
@@ -121,72 +155,55 @@ export class MainGameLoop {
             this.pod.isThrusting = false;
         }
         
-        // Draw barriers
-        for (const barrier of this.barriers) {
-            barrier.draw(this.ctx);
-            if (this.debugMode) {
-                this.drawDebugBounds(barrier, 'blue');
-            }
-        }
+        // Store current state
+        const startX = this.pod.x;
+        const startY = this.pod.y;
+        const startAngle = this.pod.angle;
         
-        // Get pod's current velocity
-        const velocity = {
-            x: this.pod.velocityX,
-            y: this.pod.velocityY
-        };
+        // Calculate total movement
+        const totalDX = this.pod.velocityX;
+        const totalDY = this.pod.velocityY;
+        const totalDAngle = this.pod.rotationalVelocity;
 
-        // Safety check: Ensure pod is not inside any barrier
-        for (const barrier of this.barriers) {
-            const barrierBounds = barrier.getBounds();
-            const podBounds = this.pod.getBounds();
+        // Check for collisions along movement path
+        const { collision, safePosition } = this.collisionHandler.checkCollisionPath(
+            this.pod,
+            startX,
+            startY,
+            startAngle,
+            totalDX,
+            totalDY,
+            totalDAngle
+        );
+
+        if (collision) {
+            console.log('Collision detected');
             
-            // Check if pod is inside barrier
-            if (this.isOverlapping(podBounds, barrierBounds)) {
-                // Push pod out of barrier based on its center position relative to barrier
-                const podCenterX = podBounds.x + podBounds.width / 2;
-                const barrierCenterX = barrierBounds.x + barrierBounds.width / 2;
-                
-                // Determine which side to push to
-                if (podCenterX < barrierCenterX) {
-                    // Pod is on left side, push left
-                    this.pod.x = barrierBounds.x - podBounds.width - 2;
-                } else {
-                    // Pod is on right side, push right
-                    this.pod.x = barrierBounds.x + barrierBounds.width + 2;
-                }
-                
-                // Stop all movement
-                this.pod.velocityX = 0;
-                this.pod.velocityY = 0;
-                velocity.x = 0;
-                velocity.y = 0;
-            }
-        }
-
-        // Check for collisions before updating position
-        const collision = this.collisionDetector.detectCollisions(this.pod, velocity);
-        
-        if (collision.collided) {
-            console.log('Collision detected!', collision);
+            // Move pod to safe position
+            this.pod.x = safePosition.x;
+            this.pod.y = safePosition.y;
+            this.pod.angle = safePosition.angle;
             
             // Track collision for rapid collision detection
             this.handleRapidCollisions();
             
             // Play wall hit sound with spatial audio
             this.audioManager.playSpatialSound('wallHit', collision.point.x, collision.point.y, {
-                volume: Math.min(1.0, Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y) / 10),
+                volume: Math.min(1.0, Math.sqrt(totalDX * totalDX + totalDY * totalDY) / 10),
                 playbackRate: 0.8 + (Math.random() * 0.4)
             });
             
-            // Handle collision
-            this.handleCollision(collision, this.pod);
+            // Handle collision response
+            this.collisionHandler.handleCollision(collision, this.pod, this.debugMode, this.ctx);
+        } else {
+            // No collision, apply full movement
+            this.pod.update(this.canvas.width, this.canvas.height);
         }
         
-        // Update and draw pod
-        this.pod.update(this.canvas.width, this.canvas.height);
+        // Draw pod
         this.pod.draw(this.ctx);
         
-        // Draw pod bounds in debug mode
+        // Draw debug visualization
         if (this.debugMode) {
             this.drawDebugBounds(this.pod, 'red');
             
@@ -199,13 +216,25 @@ export class MainGameLoop {
                 this.pod.y + this.pod.velocityY * 10
             );
             this.ctx.stroke();
+
+            // Draw sub-step points
+            this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            const debugPoints = this.collisionHandler.getDebugPoints(
+                startX, startY, totalDX, totalDY, totalDAngle,
+                Math.max(1, Math.ceil(Math.sqrt(totalDX * totalDX + totalDY * totalDY)))
+            );
+            debugPoints.forEach(point => {
+                this.ctx.beginPath();
+                this.ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
+                this.ctx.fill();
+            });
         }
 
         // Draw lockout warning if active
         if (this.thrustLocked) {
             this.ctx.save();
             this.ctx.font = 'bold 20px Arial';
-            this.ctx.fillStyle = '#FFA500'; // Orange warning color
+            this.ctx.fillStyle = '#FFA500';
             const timeLeft = Math.ceil((this.thrustLockoutEndTime - performance.now()) / 1000);
             this.ctx.fillText(`WARNING: ${timeLeft}s`, 10, 50);
             this.ctx.restore();
@@ -225,21 +254,29 @@ export class MainGameLoop {
         }
         
         this.pod = pod;
-        this.barriers = barriers;
         
-        // Update collision detector with new barriers
-        this.collisionDetector = new CollisionDetector();
-        for (const barrier of barriers) {
-            this.collisionDetector.registerCollidable(barrier);
+        // Update and re-render barriers if they changed
+        if (barriers !== this.barriers) {
+            this.barriers = barriers;
+            this.preRenderBarriers();
+            
+            // Update collision detector with new barriers
+            this.collisionDetector = new CollisionDetector();
+            for (const barrier of barriers) {
+                this.collisionDetector.registerCollidable(barrier);
+            }
         }
     }
 
-    // Helper method to check if two AABBs overlap
-    isOverlapping(bounds1, bounds2) {
-        return bounds1.x < bounds2.x + bounds2.width &&
-               bounds1.x + bounds1.width > bounds2.x &&
-               bounds1.y < bounds2.y + bounds2.height &&
-               bounds1.y + bounds1.height > bounds2.y;
+    // Pre-render barriers to their own canvas
+    preRenderBarriers() {
+        this.barriersCtx.clearRect(0, 0, this.barriersCanvas.width, this.barriersCanvas.height);
+        for (const barrier of this.barriers) {
+            barrier.draw(this.barriersCtx);
+            if (this.debugMode) {
+                this.drawDebugBounds(barrier, 'blue', this.barriersCtx);
+            }
+        }
     }
 
     // Track collision and check for lockout
@@ -286,48 +323,5 @@ export class MainGameLoop {
             return this.thrustLocked;
         }
         return false;
-    }
-
-    handleCollision(result, pod) {
-        if (!result.collided) return;
-
-        // Get current velocity
-        const velocity = {
-            x: pod.velocityX,
-            y: pod.velocityY
-        };
-
-        // Calculate reflection with energy loss based on speed
-        const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-        const energyLoss = Math.min(0.4, speed * 0.1); // More energy loss at higher speeds
-        const restitution = 0.8 - energyLoss;
-
-        // Calculate reflected velocity
-        const reflection = calculateVectorReflection(velocity, result.normal, restitution);
-        
-        // Apply reflected velocity
-        pod.velocityX = reflection.x;
-        pod.velocityY = reflection.y;
-
-        // Minimal position adjustment to prevent sticking
-        const safetyMargin = 2;
-        if (result.normal.x !== 0) {
-            pod.x += result.normal.x * safetyMargin;
-        }
-        if (result.normal.y !== 0) {
-            pod.y += result.normal.y * safetyMargin;
-        }
-
-        // Debug visualization
-        if (this.debugMode) {
-            console.log('Collision response:', {
-                originalVelocity: velocity,
-                reflectedVelocity: reflection,
-                normal: result.normal,
-                restitution: restitution
-            });
-
-            drawReflectionDebug(this.ctx, result.point, velocity, reflection);
-        }
     }
 } 
