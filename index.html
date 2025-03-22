@@ -10,30 +10,42 @@
             margin: 0 auto;
         }
         #controls {
-            text-align: center;
-            margin: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 20px;
+            margin: 5px auto;
+            max-width: 800px;
             font-family: Arial, sans-serif;
         }
         .control-group {
-            margin: 10px 0;
+            display: flex;
+            align-items: center;
         }
         .control-group span {
             color: #666;
-            margin-right: 10px;
+            margin-right: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .floor-group, .pod-group {
+            display: flex;
+            gap: 4px;
         }
         button {
-            padding: 8px 16px;
-            margin: 0 5px;
+            padding: 4px 8px;
+            font-size: 11px;
             background: #2a2a4e;
             color: #fff;
-            border: 2px solid #00ff88;
-            border-radius: 4px;
+            border: 1px solid #00ff88;
+            border-radius: 3px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
         button:hover {
             background: #3a3a6e;
-            transform: translateY(-2px);
+            transform: translateY(-1px);
         }
         button.active {
             background: #3a3a6e;
@@ -44,14 +56,14 @@
         }
         .pod-group button.active {
             border-color: #ff8800;
-            box-shadow: 0 0 10px rgba(255, 136, 0, 0.5);
+            box-shadow: 0 0 5px rgba(255, 136, 0, 0.5);
         }
         .floor-group button {
             border-color: #44ff88;
         }
         .floor-group button.active {
             border-color: #88ff00;
-            box-shadow: 0 0 10px rgba(136, 255, 0, 0.5);
+            box-shadow: 0 0 5px rgba(136, 255, 0, 0.5);
         }
     </style>
 </head>
@@ -60,18 +72,18 @@
         <div class="control-group">
             <span>Floor:</span>
             <div class="floor-group">
-                <button id="metalFloor" class="active">Metal Floor</button>
-                <button id="sandDunes">Sand Dunes</button>
-                <button id="denseSand">Dense Sand</button>
+                <button id="metalFloor" class="active">Metal</button>
+                <button id="sandDunes">Sand</button>
+                <button id="denseSand">Dense</button>
             </div>
         </div>
         <div class="control-group">
             <span>Pod Type:</span>
             <div class="pod-group">
-                <button id="defaultPod">Default Pod</button>
-                <button id="speedPod">Speed Pod</button>
-                <button id="heavyPod">Heavy Pod</button>
-                <button id="agilePod" class="active">Agile Pod</button>
+                <button id="defaultPod">Default</button>
+                <button id="speedPod">Speed</button>
+                <button id="heavyPod">Heavy</button>
+                <button id="agilePod" class="active">Agile</button>
             </div>
         </div>
     </div>
