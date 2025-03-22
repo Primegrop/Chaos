@@ -18,30 +18,85 @@ class PodTTail extends PodComponent {
     }
 
     draw(ctx, pod) {
-        // No need for translation or rotation here - the Pod class handles that
-        
-        // Draw vertical part of T
+        // Draw vertical part of T with 3D effect
         ctx.beginPath();
         ctx.rect(-this.width/2, this.yOffset, this.width, this.height);
-        ctx.fillStyle = this.color;
+        
+        // Create gradient for vertical part
+        const verticalGradient = ctx.createLinearGradient(
+            -this.width/2, 0,
+            this.width/2, 0
+        );
+        
+        // Convert base color to RGB for manipulation
+        const baseColor = this.getRGBFromHex(this.color);
+        const highlightColor = this.adjustColor(baseColor, 40);
+        const shadowColor = this.adjustColor(baseColor, -40);
+        
+        // Add gradient stops for cylindrical effect
+        verticalGradient.addColorStop(0, shadowColor);
+        verticalGradient.addColorStop(0.3, this.color);
+        verticalGradient.addColorStop(0.7, this.color);
+        verticalGradient.addColorStop(1, shadowColor);
+        
+        ctx.fillStyle = verticalGradient;
         ctx.fill();
 
-        // Draw horizontal part of T
+        // Add vertical highlight reflection
+        ctx.beginPath();
+        ctx.rect(
+            -this.width/2, 
+            this.yOffset, 
+            this.width/6, 
+            this.height
+        );
+        const vertHighlightGradient = ctx.createLinearGradient(
+            -this.width/2, 0,
+            -this.width/3, 0
+        );
+        vertHighlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        vertHighlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = vertHighlightGradient;
+        ctx.fill();
+
+        // Draw horizontal part of T with 3D effect
         ctx.beginPath();
         ctx.rect(-this.crossWidth/2, 
                 this.yOffset + this.height - this.crossHeight, 
                 this.crossWidth, 
                 this.crossHeight);
-        ctx.fillStyle = this.color;
+        
+        // Create gradient for horizontal part
+        const horizGradient = ctx.createLinearGradient(
+            0, this.yOffset + this.height - this.crossHeight,
+            0, this.yOffset + this.height
+        );
+        
+        // Add gradient stops for cylindrical effect
+        horizGradient.addColorStop(0, highlightColor);
+        horizGradient.addColorStop(0.4, this.color);
+        horizGradient.addColorStop(0.6, this.color);
+        horizGradient.addColorStop(1, shadowColor);
+        
+        ctx.fillStyle = horizGradient;
         ctx.fill();
 
-        // Add some detail lines for visual interest
+        // Add horizontal highlight reflection
         ctx.beginPath();
-        ctx.moveTo(-this.crossWidth/2, this.yOffset + this.height - this.crossHeight/2);
-        ctx.lineTo(this.crossWidth/2, this.yOffset + this.height - this.crossHeight/2);
-        ctx.strokeStyle = '#555555';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.rect(
+            -this.crossWidth/2,
+            this.yOffset + this.height - this.crossHeight,
+            this.crossWidth,
+            this.crossHeight/3
+        );
+        const horizHighlightGradient = ctx.createLinearGradient(
+            0, this.yOffset + this.height - this.crossHeight,
+            0, this.yOffset + this.height - this.crossHeight * 0.7
+        );
+        horizHighlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+        horizHighlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = horizHighlightGradient;
+        ctx.fill();
 
         // Draw main thrust effect when active
         if (pod.isThrusting) {
@@ -50,11 +105,27 @@ class PodTTail extends PodComponent {
 
         // Draw rotation thrust effects
         if (pod.isRotatingLeft) {
-            this.drawRotationThrustEffect(ctx, 'left'); // Left thrust for left rotation
+            this.drawRotationThrustEffect(ctx, 'left');
         }
         if (pod.isRotatingRight) {
-            this.drawRotationThrustEffect(ctx, 'right'); // Right thrust for right rotation
+            this.drawRotationThrustEffect(ctx, 'right');
         }
+    }
+
+    // Helper function to convert hex color to RGB
+    getRGBFromHex(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    // Helper function to adjust color brightness
+    adjustColor(color, amount) {
+        const clamp = (val) => Math.min(255, Math.max(0, val));
+        return `rgb(${clamp(color.r + amount)}, ${clamp(color.g + amount)}, ${clamp(color.b + amount)})`;
     }
 
     drawMainThrustEffect(ctx) {
@@ -77,7 +148,7 @@ class PodTTail extends PodComponent {
     }
 
     drawRotationThrustEffect(ctx, side) {
-        const thrustLength = this.crossHeight * 2;  // Increased length for visibility
+        const thrustLength = this.crossHeight * 2;
         const thrustWidth = this.crossHeight * 0.8;
         const xPos = side === 'left' ? -this.crossWidth/2 : this.crossWidth/2;
         const xDirection = side === 'left' ? -1 : 1;

@@ -28,7 +28,7 @@ export default class CollisionDetector {
     // Calculate swept bounds for a rotating object
     calculateSweptBounds(moving, velocity, rotationalVelocity) {
         // Get initial and final angles
-        const startAngle = moving.angle;
+        const startAngle = moving.behavior ? moving.behavior.properties.angle : moving.angle;
         const endAngle = startAngle + rotationalVelocity;
         
         // Calculate more steps for faster rotation
@@ -101,9 +101,17 @@ export default class CollisionDetector {
     }
 
     getRotatedCorners(moving, angle) {
-        const size = 96;
+        // Get the actual bounds size from the object if available
+        const bounds = moving.getBounds();
+        const size = Math.max(bounds.width, bounds.height);
+        
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
+        
+        // Get position from behavior if available
+        const position = moving.behavior ? 
+            moving.behavior.getPosition() : 
+            { x: moving.x, y: moving.y };
         
         return [
             {x: -size/2, y: -size/2},
@@ -111,8 +119,8 @@ export default class CollisionDetector {
             {x: size/2, y: size/2},
             {x: -size/2, y: size/2}
         ].map(point => ({
-            x: moving.x + (point.x * cos - point.y * sin),
-            y: moving.y + (point.x * sin + point.y * cos)
+            x: position.x + (point.x * cos - point.y * sin),
+            y: position.y + (point.x * sin + point.y * cos)
         }));
     }
 
@@ -120,16 +128,21 @@ export default class CollisionDetector {
     detectCollision(moving, velocity, target) {
         const result = new CollisionResult();
         
+        // Get rotational velocity from behavior if available
+        const rotationalVelocity = moving.behavior ? 
+            moving.behavior.properties.rotationalVelocity : 
+            moving.rotationalVelocity;
+        
         // Get swept bounds if object is rotating
-        const useSweptBounds = moving.rotationalVelocity && Math.abs(moving.rotationalVelocity) > 0.01;
+        const useSweptBounds = rotationalVelocity && Math.abs(rotationalVelocity) > 0.01;
         const mover = useSweptBounds ? 
-            this.calculateSweptBounds(moving, velocity, moving.rotationalVelocity) :
+            this.calculateSweptBounds(moving, velocity, rotationalVelocity) :
             moving.getBounds();
             
         const target_bounds = target.getBounds();
         
         // Early exit if no movement
-        if (velocity.x === 0 && velocity.y === 0 && (!moving.rotationalVelocity || Math.abs(moving.rotationalVelocity) < 0.01)) {
+        if (velocity.x === 0 && velocity.y === 0 && (!rotationalVelocity || Math.abs(rotationalVelocity) < 0.01)) {
             return result;
         }
 

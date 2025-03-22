@@ -27,10 +27,11 @@ export class CollisionHandler {
         // Get full velocity for collision checks
         const velocity = { x: totalDX, y: totalDY };
 
-        // Store original position
-        const originalX = object.x;
-        const originalY = object.y;
-        const originalAngle = object.angle;
+        // Store original position and get position handler
+        const properties = object.behavior ? object.behavior.properties : object;
+        const originalX = properties.x;
+        const originalY = properties.y;
+        const originalAngle = properties.angle;
 
         let collision = null;
         let collisionStep = -1;
@@ -40,9 +41,17 @@ export class CollisionHandler {
             const t = i / steps;
             
             // Move object to intermediate position
-            object.x = startX + totalDX * t;
-            object.y = startY + totalDY * t;
-            object.angle = startAngle + totalDAngle * t;
+            if (object.behavior) {
+                object.behavior.properties.setPosition(
+                    startX + totalDX * t,
+                    startY + totalDY * t
+                );
+                object.behavior.properties.angle = startAngle + totalDAngle * t;
+            } else {
+                object.x = startX + totalDX * t;
+                object.y = startY + totalDY * t;
+                object.angle = startAngle + totalDAngle * t;
+            }
 
             // Check for collision at this step using full velocity
             const result = this.collisionDetector.detectCollisions(object, velocity);
@@ -54,9 +63,14 @@ export class CollisionHandler {
         }
 
         // Restore original position
-        object.x = originalX;
-        object.y = originalY;
-        object.angle = originalAngle;
+        if (object.behavior) {
+            object.behavior.properties.setPosition(originalX, originalY);
+            object.behavior.properties.angle = originalAngle;
+        } else {
+            object.x = originalX;
+            object.y = originalY;
+            object.angle = originalAngle;
+        }
 
         if (collision) {
             // Calculate position just before collision
@@ -78,10 +92,11 @@ export class CollisionHandler {
     handleCollision(result, object, debugMode = false, ctx = null) {
         if (!result.collided) return;
 
-        // Get current velocity
+        // Get current velocity from behavior or direct properties
+        const properties = object.behavior ? object.behavior.properties : object;
         const velocity = {
-            x: object.velocityX,
-            y: object.velocityY
+            x: properties.velocityX,
+            y: properties.velocityY
         };
 
         // Calculate reflection with energy loss based on speed
@@ -92,17 +107,29 @@ export class CollisionHandler {
         // Calculate reflected velocity
         const reflection = calculateVectorReflection(velocity, result.normal, restitution);
         
-        // Apply reflected velocity
-        object.velocityX = reflection.x;
-        object.velocityY = reflection.y;
+        // Apply reflected velocity to behavior or direct properties
+        if (object.behavior) {
+            object.behavior.properties.setVelocity(reflection.x, reflection.y);
+        } else {
+            object.velocityX = reflection.x;
+            object.velocityY = reflection.y;
+        }
 
         // Minimal position adjustment to prevent sticking
         const safetyMargin = 2;
         if (result.normal.x !== 0) {
-            object.x += result.normal.x * safetyMargin;
+            if (object.behavior) {
+                object.behavior.properties.x += result.normal.x * safetyMargin;
+            } else {
+                object.x += result.normal.x * safetyMargin;
+            }
         }
         if (result.normal.y !== 0) {
-            object.y += result.normal.y * safetyMargin;
+            if (object.behavior) {
+                object.behavior.properties.y += result.normal.y * safetyMargin;
+            } else {
+                object.y += result.normal.y * safetyMargin;
+            }
         }
 
         // Debug visualization

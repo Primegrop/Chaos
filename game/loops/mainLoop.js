@@ -68,8 +68,8 @@ export class MainGameLoop {
         // Debug mode
         this.debugMode = debugMode;
 
-        // Build version (increment this when making changes)
-        this.buildVersion = 34;  // Added pre-rendered barriers canvas for performance optimization
+        // Track build version
+        this.buildVersion = 51; // Added specific highlight colors for all pod cockpits
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -84,6 +84,11 @@ export class MainGameLoop {
         
         // Animation frame ID for cleanup
         this.animationFrameId = null;
+
+        this.debug = false;
+        this.thrustLockout = false;
+        this.thrustLockoutDuration = 500; // milliseconds
+        this.lastThrustLockoutTime = 0;
     }
 
     createBuildVersionOverlay() {
@@ -156,14 +161,16 @@ export class MainGameLoop {
         }
         
         // Store current state
-        const startX = this.pod.x;
-        const startY = this.pod.y;
-        const startAngle = this.pod.angle;
+        const position = this.pod.behavior.getPosition();
+        const velocity = this.pod.behavior.getState();
+        const startX = position.x;
+        const startY = position.y;
+        const startAngle = position.angle;
         
         // Calculate total movement
-        const totalDX = this.pod.velocityX;
-        const totalDY = this.pod.velocityY;
-        const totalDAngle = this.pod.rotationalVelocity;
+        const totalDX = velocity.velocityX;
+        const totalDY = velocity.velocityY;
+        const totalDAngle = velocity.rotationalVelocity;
 
         // Check for collisions along movement path
         const { collision, safePosition } = this.collisionHandler.checkCollisionPath(
@@ -179,10 +186,9 @@ export class MainGameLoop {
         if (collision) {
             console.log('Collision detected');
             
-            // Move pod to safe position
-            this.pod.x = safePosition.x;
-            this.pod.y = safePosition.y;
-            this.pod.angle = safePosition.angle;
+            // Move pod to safe position using behavior
+            this.pod.behavior.setPosition(safePosition.x, safePosition.y);
+            this.pod.behavior.properties.angle = safePosition.angle;
             
             // Track collision for rapid collision detection
             this.handleRapidCollisions();
@@ -210,10 +216,10 @@ export class MainGameLoop {
             // Draw velocity vector
             this.ctx.strokeStyle = 'yellow';
             this.ctx.beginPath();
-            this.ctx.moveTo(this.pod.x, this.pod.y);
+            this.ctx.moveTo(position.x, position.y);
             this.ctx.lineTo(
-                this.pod.x + this.pod.velocityX * 10,
-                this.pod.y + this.pod.velocityY * 10
+                position.x + velocity.velocityX * 10,
+                position.y + velocity.velocityY * 10
             );
             this.ctx.stroke();
 

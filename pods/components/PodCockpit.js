@@ -5,6 +5,7 @@ export class PodCockpit extends PodComponent {
         super(config);
         this.radius = config.radius || 10;
         this.color = config.color || 'blue';
+        this.highlightColor = config.highlightColor || '#808080';  // Default to gray if not specified
         this.yOffset = config.yOffset || -20;
         
         // Panel dimensions
@@ -24,12 +25,12 @@ export class PodCockpit extends PodComponent {
         ctx.fillStyle = this.color;
         ctx.fill();
 
-        // Add black border
-        ctx.strokeStyle = 'black';
+        // Add metallic border using highlightColor
+        ctx.strokeStyle = this.highlightColor;
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Draw panel separators
+        // Draw panel separators with highlightColor
         ctx.beginPath();
         // Left separator (at -30% from center at bottom, -45% at top)
         ctx.moveTo(-this.radius * 0.30, this.yOffset);  // Bottom point
@@ -39,16 +40,19 @@ export class PodCockpit extends PodComponent {
         ctx.moveTo(this.radius * 0.30, this.yOffset);  // Bottom point
         ctx.lineTo(this.radius * 0.45, this.yOffset - this.radius);  // Top point
         
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = this.highlightColor;
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Add glass reflection effect
+        // Add glass reflection effect with reduced opacity for dark cockpits
         const gradient = ctx.createLinearGradient(
             0, this.yOffset - this.radius,
             0, this.yOffset
         );
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+        const isBlack = this.color.toLowerCase() === '#000000';
+        const reflectionOpacity = isBlack ? 0.15 : 0.2;  // Reduced opacity for black cockpits
+        
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${reflectionOpacity})`);
         gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         
         ctx.beginPath();

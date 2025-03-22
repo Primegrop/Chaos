@@ -4,6 +4,7 @@ import PodThruster from './components/PodThruster.js';
 import PodTTail from './components/PodTTail.js';
 import { PodFuselage } from './components/PodFuselage.js';
 import { defaultPodConfig } from './configs/podConfigs.js';
+import { PodBehavior } from './PodBehavior.js';
 
 // Make sure PodThruster is available in the Pod class scope
 const PodThrusterClass = PodThruster;
@@ -13,29 +14,88 @@ export class Pod {
         // Store the config
         this.config = config;
         
-        // Core pod properties
-        this.x = canvasWidth / 2;
-        this.y = canvasHeight / 2;
-        this.angle = 0;
-        this.velocityX = 0;  // Rename vx to velocityX for clarity
-        this.velocityY = 0;  // Rename vy to velocityY for clarity
-        
-        // Movement properties (from config)
-        this.maxSpeed = config.maxSpeed;
-        this.acceleration = config.acceleration;
-        this.rotationalVelocity = 0;
-        this.rotationAcceleration = config.rotationAcceleration;
-        this.maxRotationalSpeed = config.maxRotationalSpeed;
-        this.rotationalDamping = config.rotationalDamping;
+        // Create behavior controller
+        this.behavior = new PodBehavior(config);
+        this.behavior.setPosition(canvasWidth / 2, canvasHeight / 2);
 
         // Visual components
         this.components = [];
         this.initializeComponents(config);
+    }
 
-        // Input state
-        this.isThrusting = false;
-        this.isRotatingLeft = false;
-        this.isRotatingRight = false;
+    // Proxy properties for component compatibility
+    get isThrusting() {
+        return this.behavior.getState().isThrusting;
+    }
+
+    set isThrusting(value) {
+        this.behavior.isThrusting = value;
+    }
+
+    get isRotatingLeft() {
+        return this.behavior.getState().isRotatingLeft;
+    }
+
+    set isRotatingLeft(value) {
+        this.behavior.isRotatingLeft = value;
+    }
+
+    get isRotatingRight() {
+        return this.behavior.getState().isRotatingRight;
+    }
+
+    set isRotatingRight(value) {
+        this.behavior.isRotatingRight = value;
+    }
+
+    get velocityX() {
+        return this.behavior.getState().velocityX;
+    }
+
+    set velocityX(value) {
+        this.behavior.velocityX = value;
+    }
+
+    get velocityY() {
+        return this.behavior.getState().velocityY;
+    }
+
+    set velocityY(value) {
+        this.behavior.velocityY = value;
+    }
+
+    get rotationalVelocity() {
+        return this.behavior.getState().rotationalVelocity;
+    }
+
+    set rotationalVelocity(value) {
+        this.behavior.rotationalVelocity = value;
+    }
+
+    get x() {
+        return this.behavior.getPosition().x;
+    }
+
+    set x(value) {
+        const pos = this.behavior.getPosition();
+        this.behavior.setPosition(value, pos.y);
+    }
+
+    get y() {
+        return this.behavior.getPosition().y;
+    }
+
+    set y(value) {
+        const pos = this.behavior.getPosition();
+        this.behavior.setPosition(pos.x, value);
+    }
+
+    get angle() {
+        return this.behavior.getPosition().angle;
+    }
+
+    set angle(value) {
+        this.behavior.properties.angle = value;
     }
 
     initializeComponents(config) {
@@ -66,53 +126,8 @@ export class Pod {
     }
 
     update(canvasWidth, canvasHeight) {
-        // Apply thrust if active
-        if (this.isThrusting) {
-            this.velocityX += this.acceleration * Math.sin(this.angle);
-            this.velocityY -= this.acceleration * Math.cos(this.angle);
-        }
-
-        // Apply rotation if active
-        if (this.isRotatingLeft) {
-            this.rotationalVelocity = Math.max(
-                this.rotationalVelocity - this.rotationAcceleration,
-                -this.maxRotationalSpeed
-            );
-        }
-        if (this.isRotatingRight) {
-            this.rotationalVelocity = Math.min(
-                this.rotationalVelocity + this.rotationAcceleration,
-                this.maxRotationalSpeed
-            );
-        }
-
-        // Limit total velocity
-        const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
-        if (speed > this.maxSpeed) {
-            const scale = this.maxSpeed / speed;
-            this.velocityX *= scale;
-            this.velocityY *= scale;
-        }
-
-        // Update position based on velocity
-        this.x += this.velocityX;
-        this.y += this.velocityY;
-
-        // Update angle based on rotational velocity
-        this.angle += this.rotationalVelocity;
-
-        // Apply rotational damping
-        this.rotationalVelocity *= this.rotationalDamping;
-
-        // Apply slight velocity damping
-        this.velocityX *= 0.995;
-        this.velocityY *= 0.995;
-
-        // Wrap around the edges
-        if (this.x < 0) this.x = canvasWidth;
-        if (this.x > canvasWidth) this.x = 0;
-        if (this.y < 0) this.y = canvasHeight;
-        if (this.y > canvasHeight) this.y = 0;
+        // Update behavior
+        this.behavior.update(canvasWidth, canvasHeight);
 
         // Update components
         this.components.forEach(component => {
@@ -126,13 +141,14 @@ export class Pod {
         // Save the context state
         ctx.save();
         
+        const position = this.behavior.getPosition();
+        
         // Move to pod's position and rotate
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
+        ctx.translate(position.x, position.y);
+        ctx.rotate(position.angle);
 
         // Draw all components in order
         this.components.forEach(component => {
-            // Each component will handle its own positioning relative to pod center
             component.draw(ctx, this);
         });
 
@@ -141,28 +157,13 @@ export class Pod {
     }
 
     handleInput(key, isKeyDown = true) {
-        // Update input state
-        switch (key) {
-            case 'ArrowUp':
-                this.isThrusting = isKeyDown;
-                break;
-            case 'ArrowLeft':
-                this.isRotatingLeft = isKeyDown;
-                break;
-            case 'ArrowRight':
-                this.isRotatingRight = isKeyDown;
-                break;
-        }
+        this.behavior.handleInput(key, isKeyDown);
     }
 
     // Helper method to reconfigure the pod
     reconfigure(config) {
-        // Update movement properties
-        this.maxSpeed = config.maxSpeed;
-        this.acceleration = config.acceleration;
-        this.rotationAcceleration = config.rotationAcceleration;
-        this.maxRotationalSpeed = config.maxRotationalSpeed;
-        this.rotationalDamping = config.rotationalDamping;
+        // Update behavior
+        this.behavior.reconfigure(config);
 
         // Clear existing components
         this.components = [];
@@ -172,29 +173,12 @@ export class Pod {
     }
 
     getBounds() {
-        // Get only the body component for dimensions
-        const bodyComponent = this.components.find(c => c instanceof PodBody);
-        
-        if (!bodyComponent) {
-            return {
-                x: this.x - 10,
-                y: this.y - 10,
-                width: 20,
-                height: 20
-            };
-        }
-
-        // Calculate size to fully encompass all components
-        // Body height = 40
-        // Cockpit offset = -20
-        // Thruster offset = 35 + height(20) = 55
-        // Total height from top to bottom = 75 (20 up + 55 down)
-        // Add safety margin of 4 pixels on each side
+        const position = this.behavior.getPosition();
         const size = 112; // Round up to nearest number divisible by 4 for easy centering
 
         // Calculate rotated bounds
-        const cos = Math.cos(this.angle);
-        const sin = Math.sin(this.angle);
+        const cos = Math.cos(position.angle);
+        const sin = Math.sin(position.angle);
 
         // Calculate corners of the square
         const corners = [
@@ -203,8 +187,8 @@ export class Pod {
             {x: size/2, y: size/2},
             {x: -size/2, y: size/2}
         ].map(point => ({
-            x: this.x + (point.x * cos - point.y * sin),
-            y: this.y + (point.x * sin + point.y * cos)
+            x: position.x + (point.x * cos - point.y * sin),
+            y: position.y + (point.x * sin + point.y * cos)
         }));
 
         // Find the bounds of the rotated square

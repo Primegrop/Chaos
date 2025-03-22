@@ -1,126 +1,131 @@
 // Default pod configuration
 export const defaultPodConfig = {
-    // Movement properties
-    maxSpeed: 5,
-    acceleration: 0.1,
-    rotationAcceleration: 0.003,
+    // Physical properties
+    maxSpeed: 2.5,
+    acceleration: 0.025,
+    rotationAcceleration: 0.0002,
     maxRotationalSpeed: 0.05,
-    rotationalDamping: 0.99,
+    rotationalDamping: 0.995,
+    velocityDamping: 0.995,
     
-    // Component-specific properties
+    // Visual components configuration
     body: {
-        width: 15,
-        height: 40,
+        width: 12,
+        height: 16,
         color: '#F0E68C'
     },
     cockpit: {
-        radius: 10,
-        color: 'blue',
-        yOffset: -20
+        radius: 6,
+        color: '#4169E1',  // Royal Blue
+        highlightColor: '#000000',  // Black
+        yOffset: -10
     },
     fuselage: {
-        width: 8,
-        height: 30,
-        color: '#808080',
-        yOffset: 15
+        color: '#DAA520'  // Goldenrod
     },
     thruster: {
-        width: 10,
-        height: 20,
-        color: 'gray',
-        yOffset: 35
+        color: '#CD853F',  // Peru
+        flameColor: '#FF4500'  // OrangeRed
     }
 };
 
 // Speed-focused configuration
 export const speedPodConfig = {
-    ...defaultPodConfig,
-    maxSpeed: 8,
-    acceleration: 0.15,
-    rotationAcceleration: 0.004,
-    maxRotationalSpeed: 0.075,
+    // Physical properties
+    maxSpeed: 4,
+    acceleration: 0.035,
+    rotationAcceleration: 0.00015,
+    maxRotationalSpeed: 0.04,
+    rotationalDamping: 0.997,
+    velocityDamping: 0.997,
+    
+    // Visual components configuration
     body: {
-        ...defaultPodConfig.body,
-        width: 12,  // Thinner for speed
-        height: 45, // Longer for speed
-        color: '#ff4444'  // Red color scheme
+        width: 10,
+        height: 18,
+        color: '#ff4444'
+    },
+    cockpit: {
+        radius: 5,
+        color: '#000000',  // Black
+        highlightColor: '#C0C0C0',  // Silver
+        yOffset: -9
     },
     fuselage: {
-        ...defaultPodConfig.fuselage,
-        height: 35,  // Longer fuselage for speed pod
-        color: '#cc0000'
+        color: '#8B0000'  // Dark Red
     },
     thruster: {
-        ...defaultPodConfig.thruster,
-        width: 8,   // Smaller thruster
-        height: 25, // Longer thruster
-        color: '#cc0000'
+        color: '#B22222',  // FireBrick
+        flameColor: '#FFD700'  // Gold
     }
 };
 
 // Heavy pod configuration
 export const heavyPodConfig = {
-    ...defaultPodConfig,
-    maxSpeed: 4,
-    acceleration: 0.08,
-    rotationAcceleration: 0.002,
-    maxRotationalSpeed: 0.04,
+    // Physical properties
+    maxSpeed: 2,
+    acceleration: 0.015,
+    rotationAcceleration: 0.0001,
+    maxRotationalSpeed: 0.025,
+    rotationalDamping: 0.998,
+    velocityDamping: 0.99,
+    
+    // Visual components configuration
     body: {
-        ...defaultPodConfig.body,
-        width: 20,  // Wider for tank-like appearance
-        height: 35, // Shorter but stockier
-        color: '#666666'  // Dark gray color scheme
-    },
-    fuselage: {
-        ...defaultPodConfig.fuselage,
-        width: 10,  // Thicker fuselage for heavy pod
-        height: 25, // Shorter but sturdier
-        color: '#444444'
+        width: 14,
+        height: 14,
+        color: '#666666'
     },
     cockpit: {
-        ...defaultPodConfig.cockpit,
-        radius: 12,
-        color: '#333333',
-        yOffset: -17
+        radius: 7,
+        color: '#8B4513',  // Saddle Brown
+        highlightColor: '#000000',  // Black
+        yOffset: -11
+    },
+    fuselage: {
+        color: '#4A4A4A'  // Darker Gray
     },
     thruster: {
-        ...defaultPodConfig.thruster,
-        width: 14,
-        height: 18,
-        color: '#444444'
+        color: '#696969',  // Dim Gray
+        flameColor: '#4682B4'  // Steel Blue
     }
 };
 
-// Agile pod configuration with T-tail
+// Agile pod configuration
 export const agilePodConfig = {
-    ...defaultPodConfig,
-    maxSpeed: 6,
-    acceleration: 0.12,
-    rotationAcceleration: 0.0035,
+    // Physical properties
+    maxSpeed: 3,
+    acceleration: 0.03,
+    rotationAcceleration: 0.00025,
     maxRotationalSpeed: 0.06,
-    rotationalDamping: 0.98,
+    rotationalDamping: 0.993,
+    velocityDamping: 0.993,
+    
+    // Visual components configuration
     body: {
-        ...defaultPodConfig.body,
-        width: 14,
-        height: 38,
-        color: '#4488ff'  // Blue color scheme
-    },
-    fuselage: {
-        ...defaultPodConfig.fuselage,
-        height: 28,
-        color: '#2244aa'
+        width: 11,
+        height: 15,
+        color: '#4488ff'
     },
     cockpit: {
-        ...defaultPodConfig.cockpit,
-        color: '#001133',
-        yOffset: -19
+        radius: 6,
+        color: '#32CD32',  // Lime Green
+        highlightColor: '#FFD700',  // Gold/Yellow
+        yOffset: -10
+    },
+    fuselage: {
+        color: '#1E90FF'  // Dodger Blue
     },
     ttail: {
         width: 10,
         height: 24,
         crossWidth: 20,
         crossHeight: 8,
-        color: '#2244aa',
+        color: '#4169E1',  // Royal Blue
         yOffset: 35
+    },
+    thruster: {
+        color: '#4169E1',  // Royal Blue
+        flameColor: '#7FFF00'  // Chartreuse
     }
 }; 

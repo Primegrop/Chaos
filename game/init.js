@@ -13,33 +13,44 @@ import {
 import { MainGameLoop } from './loops/mainLoop.js';
 
 export class GameInitializer {
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
+    constructor() {
+        // Get the canvas element
+        this.canvas = document.getElementById('gameCanvas');
         
-        // Create floor instances
+        // Set fixed game dimensions
+        this.GAME_WIDTH = 800;
+        this.GAME_HEIGHT = 600;
+        
+        // Set canvas size
+        this.canvas.width = this.GAME_WIDTH;
+        this.canvas.height = this.GAME_HEIGHT;
+        
+        // Initialize floor types
         this.metalFloor = new MetalFloor();
         this.sandDuneFloor = new SandDuneFloor();
         this.denseSandFloor = new DenseSandFloor();
         
-        // Create barriers
-        this.brickWall = new BrickWall(
-            canvas.width * 0.5,  // Center of the screen
-            canvas.height * 0.2  // 20% from the top
-        );
-        
-        // Create pod with agile configuration by default
-        this.pod = new Pod(canvas.width, canvas.height, agilePodConfig);
-        this.background = new Background(canvas, this.metalFloor);
-        
-        // Apply background styles
+        // Create background with initial floor type (metal)
+        this.background = new Background(this.canvas, this.metalFloor);
         this.background.applyStyles();
         
-        // Create game loop
-        this.gameLoop = new MainGameLoop(canvas, this.background, this.pod, [this.brickWall]);
+        // Create pod with default config
+        this.pod = new Pod(this.GAME_WIDTH, this.GAME_HEIGHT, defaultPodConfig);
         
-        // Bind methods
-        this.setupEventListeners = this.setupEventListeners.bind(this);
+        // Create game loop
+        this.gameLoop = new MainGameLoop(
+            this.canvas,
+            this.background,
+            this.pod,
+            [],  // No barriers for now
+            true // Debug mode on
+        );
+        
+        // Start the game loop
+        this.gameLoop.start();
+        
+        // Set up keyboard event listeners
+        this.setupEventListeners();
     }
 
     updateActiveButtons(clickedId, groupClass) {
@@ -108,7 +119,6 @@ export class GameInitializer {
     }
 
     start() {
-        this.setupEventListeners();
         this.gameLoop.start();
     }
 } 

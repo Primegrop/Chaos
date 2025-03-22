@@ -81,8 +81,8 @@ export class ObjectProperties {
     }
 
     // Core update methods
-    update() {
-        this._updatePosition();
+    update(canvasWidth, canvasHeight) {
+        this._updatePosition(canvasWidth, canvasHeight);
         this._limitVelocity();
         this._updateRotation();
         this._applyDamping();
@@ -105,9 +105,15 @@ export class ObjectProperties {
     }
 
     // Private update methods
-    _updatePosition() {
+    _updatePosition(canvasWidth, canvasHeight) {
         this._x += this._velocityX;
         this._y += this._velocityY;
+
+        // Wraparound logic
+        if (this._x < 0) this._x = canvasWidth;
+        if (this._x > canvasWidth) this._x = 0;
+        if (this._y < 0) this._y = canvasHeight;
+        if (this._y > canvasHeight) this._y = 0;
     }
 
     _limitVelocity() {
