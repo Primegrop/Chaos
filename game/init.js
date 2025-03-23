@@ -14,12 +14,12 @@ import { MainGameLoop } from './loops/mainLoop.js';
 
 export class GameInitializer {
     constructor() {
+        // Set up game dimensions as class properties
+        this.GAME_WIDTH = 1280;
+        this.GAME_HEIGHT = 720;
+        
         // Get the canvas element
         this.canvas = document.getElementById('gameCanvas');
-        
-        // Set fixed game dimensions
-        this.GAME_WIDTH = 800;
-        this.GAME_HEIGHT = 600;
         
         // Set canvas size
         this.canvas.width = this.GAME_WIDTH;
@@ -34,17 +34,25 @@ export class GameInitializer {
         this.background = new Background(this.canvas, this.metalFloor);
         this.background.applyStyles();
         
-        // Create pod with default config
+        // Initialize pod on the left side, facing left
         this.pod = new Pod(this.GAME_WIDTH, this.GAME_HEIGHT, defaultPodConfig);
+        this.pod.behavior.setPosition(this.GAME_WIDTH * 0.2, this.GAME_HEIGHT * 0.5);  // 20% from left, vertically centered
+        this.pod.behavior.properties.angle = Math.PI;  // Face left
         
-        // Create game loop
+        // Create brick wall in the center
+        this.brickWall = new BrickWall(this.GAME_WIDTH * 0.5, this.GAME_HEIGHT * 0.5);  // Centered position
+        
+        // Initialize game loop with all required parameters
         this.gameLoop = new MainGameLoop(
             this.canvas,
             this.background,
             this.pod,
-            [],  // No barriers for now
-            true // Debug mode on
+            [this.brickWall],  // Pass barriers array
+            true  // Debug mode on
         );
+        
+        // Ensure the brick wall is registered for collision detection
+        this.gameLoop.collisionDetector.registerCollidable(this.brickWall);
         
         // Start the game loop
         this.gameLoop.start();
@@ -85,27 +93,19 @@ export class GameInitializer {
 
         // Handle pod configuration switching
         document.getElementById('defaultPod').addEventListener('click', () => {
-            this.pod = new Pod(this.canvas.width, this.canvas.height, defaultPodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
-            this.updateActiveButtons('defaultPod', 'pod-group');
+            this.changePodType('defaultPod');
         });
 
         document.getElementById('speedPod').addEventListener('click', () => {
-            this.pod = new Pod(this.canvas.width, this.canvas.height, speedPodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
-            this.updateActiveButtons('speedPod', 'pod-group');
+            this.changePodType('speedPod');
         });
 
         document.getElementById('heavyPod').addEventListener('click', () => {
-            this.pod = new Pod(this.canvas.width, this.canvas.height, heavyPodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
-            this.updateActiveButtons('heavyPod', 'pod-group');
+            this.changePodType('heavyPod');
         });
 
         document.getElementById('agilePod').addEventListener('click', () => {
-            this.pod = new Pod(this.canvas.width, this.canvas.height, agilePodConfig);
-            this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
-            this.updateActiveButtons('agilePod', 'pod-group');
+            this.changePodType('agilePod');
         });
 
         // Set up keyboard input handling
@@ -116,6 +116,37 @@ export class GameInitializer {
         document.addEventListener('keyup', (event) => {
             this.pod.handleInput(event.key, false);
         });
+    }
+
+    changePodType(type) {
+        let config;
+        switch (type) {
+            case 'defaultPod':
+                config = defaultPodConfig;
+                break;
+            case 'speedPod':
+                config = speedPodConfig;
+                break;
+            case 'heavyPod':
+                config = heavyPodConfig;
+                break;
+            case 'agilePod':
+                config = agilePodConfig;
+                break;
+        }
+        
+        // Create new pod with the selected config
+        this.pod = new Pod(this.canvas.width, this.canvas.height, config);
+        // Position on left side, facing left
+        this.pod.behavior.setPosition(this.GAME_WIDTH * 0.2, this.GAME_HEIGHT * 0.5);
+        this.pod.behavior.properties.angle = Math.PI;
+        
+        // Update game objects and ensure collision detection is maintained
+        this.gameLoop.updateGameObjects(this.background, this.pod, [this.brickWall]);
+        this.gameLoop.collisionDetector.registerCollidable(this.brickWall);
+        
+        // Update active button
+        this.updateActiveButtons(type, 'pod-group');
     }
 
     start() {

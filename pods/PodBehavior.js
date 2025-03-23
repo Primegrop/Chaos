@@ -2,8 +2,13 @@ import { ObjectProperties } from '../ObjectProps/ObjectProperties.js';
 
 export class PodBehavior {
     constructor(config = {}) {
-        // Create the physical properties handler
-        this.properties = new ObjectProperties(config);
+        // Create the physical properties handler with initial position
+        this.properties = new ObjectProperties({
+            ...config,
+            x: config.x || 0,
+            y: config.y || 0,
+            angle: config.angle || 0
+        });
         
         // Input state (specific to pod behavior)
         this.isThrusting = false;
@@ -53,12 +58,17 @@ export class PodBehavior {
     }
 
     getState() {
+        const position = this.properties.getPosition();
+        const velocity = this.properties.getVelocity();
         return {
             isThrusting: this.isThrusting,
             isRotatingLeft: this.isRotatingLeft,
             isRotatingRight: this.isRotatingRight,
-            ...this.properties.getPosition(),
-            ...this.properties.getVelocity(),
+            x: position.x,
+            y: position.y,
+            angle: position.angle,
+            velocityX: velocity.x,
+            velocityY: velocity.y,
             rotationalVelocity: this.properties.rotationalVelocity
         };
     }

@@ -11,12 +11,16 @@ const PodThrusterClass = PodThruster;
 
 export class Pod {
     constructor(canvasWidth, canvasHeight, config = defaultPodConfig) {
-        // Store the config
-        this.config = config;
+        // Store the config with initial position
+        this.config = {
+            ...config,
+            x: canvasWidth / 2,
+            y: canvasHeight / 2,
+            angle: 0
+        };
         
-        // Create behavior controller
-        this.behavior = new PodBehavior(config);
-        this.behavior.setPosition(canvasWidth / 2, canvasHeight / 2);
+        // Create behavior controller with position
+        this.behavior = new PodBehavior(this.config);
 
         // Visual components
         this.components = [];
