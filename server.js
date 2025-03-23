@@ -11,6 +11,11 @@ const PORT = process.env.PORT || 3001;
 // Serve static files from the root directory
 app.use(express.static(__dirname));
 
+// Handle favicon requests
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end(); // No content response
+});
+
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);

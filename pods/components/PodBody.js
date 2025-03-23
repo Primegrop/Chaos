@@ -3,10 +3,12 @@ import PodComponent from './PodComponent.js';
 export class PodBody extends PodComponent {
     constructor(config) {
         super(config);
-        this.width = config.width || 15;
-        this.height = config.height || 40;
-        this.color = config.color || '#F0E68C';
+        this.width = config.width || 20;
+        this.height = config.height || 30;
+        this.color = config.color || '#888888';
         this.yOffset = config.yOffset || 0;
+        this.lastPulseTime = 0;
+        this.pulseIntensity = 0;
     }
 
     draw(ctx, x, y, angle) {
@@ -72,7 +74,91 @@ export class PodBody extends PodComponent {
         ctx.fillStyle = shadowGradient;
         ctx.fill();
 
+        // Check for thrust lockout
+        const mainLoop = window.gameLoop;
+        const thrustLocked = mainLoop && mainLoop.checkThrustLockout();
+
+        if (thrustLocked) {
+            this.drawLightningEffect(ctx);
+        }
+
         ctx.restore();
+    }
+
+    drawLightningEffect(ctx) {
+        const now = performance.now();
+        // Update pulse intensity
+        if (now - this.lastPulseTime > 16) { // ~60fps
+            this.pulseIntensity = Math.sin(now / 200) * 0.5 + 0.5; // Oscillate between 0 and 1
+            this.lastPulseTime = now;
+        }
+
+        ctx.save();
+        
+        // Draw lightning around the perimeter
+        const numPoints = 12; // Number of points around the ellipse
+        const angleStep = (Math.PI * 2) / numPoints;
+        
+        for (let i = 0; i < numPoints; i++) {
+            const startAngle = i * angleStep;
+            const endAngle = ((i + 1) % numPoints) * angleStep;
+            
+            // Calculate start and end points on the ellipse
+            const startX = Math.cos(startAngle) * this.width;
+            const startY = this.yOffset + Math.sin(startAngle) * this.height;
+            const endX = Math.cos(endAngle) * this.width;
+            const endY = this.yOffset + Math.sin(endAngle) * this.height;
+            
+            // Draw lightning segment between these points
+            this.drawLightningSegment(ctx, 
+                startX, startY, 
+                endX, endY, 
+                this.pulseIntensity
+            );
+        }
+
+        ctx.restore();
+    }
+
+    drawLightningSegment(ctx, startX, startY, endX, endY, intensity) {
+        const segments = 3; // Number of segments in each lightning bolt
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const segmentLength = Math.sqrt(dx * dx + dy * dy) / segments;
+        const perpDistance = segmentLength * 0.3; // Maximum perpendicular deviation
+        
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+
+        // Create intermediate points with random perpendicular offset
+        for (let i = 1; i < segments; i++) {
+            const t = i / segments;
+            const baseX = startX + dx * t;
+            const baseY = startY + dy * t;
+            
+            // Calculate perpendicular vector
+            const perpX = -dy / Math.sqrt(dx * dx + dy * dy);
+            const perpY = dx / Math.sqrt(dx * dx + dy * dy);
+            
+            // Add random offset in perpendicular direction
+            const offset = (Math.random() - 0.5) * perpDistance;
+            const pointX = baseX + perpX * offset;
+            const pointY = baseY + perpY * offset;
+            
+            ctx.lineTo(pointX, pointY);
+        }
+        
+        ctx.lineTo(endX, endY);
+
+        // Style for the lightning
+        ctx.strokeStyle = `rgba(255, 255, 0, ${0.3 + intensity * 0.7})`; // Yellow with pulsing opacity
+        ctx.lineWidth = 1 + intensity * 1.5; // Thinner lines for perimeter
+        ctx.stroke();
+
+        // Add glow effect
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.2 + intensity * 0.3})`; // White glow
+        ctx.lineWidth = 2 + intensity * 2;
+        ctx.stroke();
     }
 
     // Helper function to convert hex color to RGB

@@ -55,16 +55,20 @@ class PodThruster extends PodComponent {
         this.drawRim(ctx, this.yOffset);
         this.drawRim(ctx, this.yOffset + this.height);
 
-        // Draw main thrust effect if active
-        if (pod.isThrusting) {
+        // Check for thrust lockout
+        const mainLoop = window.gameLoop;
+        const thrustLocked = mainLoop && mainLoop.checkThrustLockout();
+
+        // Draw main thrust effect if active and not locked
+        if (pod.isThrusting && !thrustLocked) {
             this.drawThrustEffect(ctx);
         }
 
-        // Draw rotation thrust effects if active
-        if (pod.isRotatingLeft) {
+        // Draw rotation thrust effects if active and not locked
+        if (pod.isRotatingLeft && !thrustLocked) {
             this.drawRotationThrustEffect(ctx, 'left');
         }
-        if (pod.isRotatingRight) {
+        if (pod.isRotatingRight && !thrustLocked) {
             this.drawRotationThrustEffect(ctx, 'right');
         }
     }

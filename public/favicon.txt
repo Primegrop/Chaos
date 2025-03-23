@@ -1,0 +1,8 @@
+To resolve the favicon 404 error, either:
+
+1. Copy any .ico file to public/favicon.ico
+2. Or modify the server.js to handle favicon requests with:
+
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end(); // No content response
+}); 

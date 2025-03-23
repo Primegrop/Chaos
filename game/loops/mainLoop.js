@@ -7,6 +7,9 @@ import { calculateVectorReflection } from '../VeloReflect/collisionReflectCalc.j
 
 export class MainGameLoop {
     constructor(canvas, background, pod, barriers = [], debugMode = true) {
+        // Make game loop globally accessible
+        window.gameLoop = this;
+        
         // Main game canvas
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -69,8 +72,8 @@ export class MainGameLoop {
         this.debugMode = debugMode;
         this.isRecordingDebug = false; // Add recording state
         
-        // Build number (incremented for state management fix)
-        this.buildVersion = 105;
+        // Build number (incremented for perimeter lightning effect)
+        this.buildVersion = 113;
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -78,21 +81,22 @@ export class MainGameLoop {
         // Create debug control overlay
         this.createDebugControls();
         
-        // Collision tracking
+        // Collision tracking and thrust lockout
         this.recentCollisions = [];
         this.thrustLocked = false;
         this.thrustLockoutEndTime = 0;
+        this.lastCollisionTime = 0;
+        this.lockoutStartTime = 0; // For tracking lockout duration
         
-        // Bind the loop method
+        // Bind methods
         this.loop = this.loop.bind(this);
+        this.handleRapidCollisions = this.handleRapidCollisions.bind(this);
+        this.checkThrustLockout = this.checkThrustLockout.bind(this);
         
         // Animation frame ID for cleanup
         this.animationFrameId = null;
 
         this.debug = false;
-        this.thrustLockout = false;
-        this.thrustLockoutDuration = 500; // milliseconds
-        this.lastThrustLockoutTime = 0;
     }
 
     createBuildVersionOverlay() {
@@ -404,7 +408,7 @@ export class MainGameLoop {
     handleRapidCollisions() {
         const now = performance.now();
         const COLLISION_WINDOW = 2000; // 2 second window for rapid collisions
-        const LOCKOUT_DURATION = 1000; // 1 second lockout for 2 hits
+        const LOCKOUT_DURATION = 2000; // 2 second lockout for 2 hits
         
         // Add current collision time
         this.recentCollisions.push(now);
@@ -419,13 +423,17 @@ export class MainGameLoop {
             console.log('Two collisions detected - activating warning lockout');
             this.thrustLocked = true;
             this.thrustLockoutEndTime = now + LOCKOUT_DURATION;
+            this.lockoutStartTime = now;
             
             // Stop all pod movement
-            this.pod.velocityX = 0;
-            this.pod.velocityY = 0;
-            
-            // Disable pod thrusting
-            this.pod.isThrusting = false;
+            if (this.pod.behavior) {
+                this.pod.behavior.properties.setVelocity(0, 0);
+                this.pod.behavior.isThrusting = false;
+            } else {
+                this.pod.velocityX = 0;
+                this.pod.velocityY = 0;
+                this.pod.isThrusting = false;
+            }
             
             // Reset collision counter
             this.recentCollisions = [];
@@ -436,10 +444,15 @@ export class MainGameLoop {
     checkThrustLockout() {
         if (this.thrustLocked) {
             const now = performance.now();
+            const elapsedTime = now - this.lockoutStartTime;
+            
             if (now >= this.thrustLockoutEndTime) {
-                console.log('Thrust lockout ended');
+                console.log(`Thrust lockout ended after ${elapsedTime}ms`);
                 this.thrustLocked = false;
                 this.recentCollisions = [];
+                this.lockoutStartTime = 0;
+            } else {
+                console.log(`Thrust still locked - ${elapsedTime}ms elapsed, ${this.thrustLockoutEndTime - now}ms remaining`);
             }
             return this.thrustLocked;
         }

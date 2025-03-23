@@ -90,7 +90,7 @@ export default class BrickWall {
         if (speed > 5) {
             this.audioManager.playSpatialSound('wallHit', x, y, {
                 volume: volume,
-                playbackRate: 0.8 + (speed / 20)
+                playbackRate: Math.min(1.0, 0.8 + (speed / 40))  // Reduced speed influence and capped at 1.0
             });
         }
 

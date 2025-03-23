@@ -31,8 +31,12 @@ export class PodBehavior {
     }
 
     update(canvasWidth, canvasHeight) {
-        // Apply thrust if active
-        if (this.isThrusting) {
+        // Check if thrust is allowed
+        const mainLoop = window.gameLoop;
+        const thrustLocked = mainLoop && mainLoop.checkThrustLockout();
+
+        // Apply thrust if active and not locked
+        if (this.isThrusting && !thrustLocked) {
             this.properties.applyForce(this.properties.acceleration, this.properties.angle);
         }
 
