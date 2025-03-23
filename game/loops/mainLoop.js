@@ -72,8 +72,8 @@ export class MainGameLoop {
         this.debugMode = debugMode;
         this.isRecordingDebug = false; // Add recording state
         
-        // Build number (incremented for uniform brick pattern)
-        this.buildVersion = 115;
+        // Build number (incremented for adjusted pod body collision boxes)
+        this.buildVersion = 123;
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -179,6 +179,7 @@ export class MainGameLoop {
     }
 
     drawDebugBounds(object, color = 'red', context = this.ctx) {
+        // Draw main bounds
         const bounds = object.getBounds();
         context.strokeStyle = color;
         context.lineWidth = object instanceof Pod ? 2 : 1;
@@ -188,6 +189,20 @@ export class MainGameLoop {
             bounds.width,
             bounds.height
         );
+
+        // Draw detailed bounds if available
+        if (object.getDetailedBounds && this.debugMode) {
+            const detailedBounds = object.getDetailedBounds();
+            detailedBounds.forEach((box, index) => {
+                context.strokeStyle = `hsl(${(index * 60) % 360}, 100%, 50%)`; // Different color for each component
+                context.strokeRect(
+                    box.x,
+                    box.y,
+                    box.width,
+                    box.height
+                );
+            });
+        }
     }
 
     start() {
@@ -230,35 +245,28 @@ export class MainGameLoop {
         
         // Then check for collisions
         for (const barrier of this.barriers) {
-            const barrierBounds = barrier.getBounds();
-            const podBounds = this.pod.getBounds();
+            // Use detailed collision detection instead of simple overlap
+            const collisionResult = this.collisionDetector.detectCollision(
+                this.pod,
+                { x: velocity.velocityX, y: velocity.velocityY },
+                barrier
+            );
 
             this.debugLog('Collision Check:', {
-                podBounds,
-                barrierBounds,
-                isOverlapping: this.collisionHandler.isOverlapping(podBounds, barrierBounds)
+                podBounds: this.pod.getBounds(),
+                barrierBounds: barrier.getBounds(),
+                collisionResult
             });
 
-            if (this.collisionHandler.isOverlapping(podBounds, barrierBounds)) {
+            if (collisionResult.collided) {
                 this.debugLog('COLLISION DETECTED!');
                 
-                // Calculate collision normal from barrier to pod
-                const barrierCenterX = barrierBounds.x + barrierBounds.width / 2;
-                const barrierCenterY = barrierBounds.y + barrierBounds.height / 2;
-                const podCenterX = position.x;
-                const podCenterY = position.y;
-                
-                const dx = podCenterX - barrierCenterX;
-                const dy = podCenterY - barrierCenterY;
-                const length = Math.sqrt(dx * dx + dy * dy);
-                const normal = {
-                    x: dx / length,
-                    y: dy / length
-                };
+                // Use the collision normal from the detailed detection
+                const normal = collisionResult.normal;
 
                 this.debugLog('Collision Details:', {
-                    podCenter: { x: podCenterX, y: podCenterY },
-                    barrierCenter: { x: barrierCenterX, y: barrierCenterY },
+                    podCenter: { x: position.x, y: position.y },
+                    collisionPoint: collisionResult.point,
                     normal
                 });
 
@@ -288,11 +296,11 @@ export class MainGameLoop {
                 // Apply reflection velocity
                 this.pod.behavior.properties.setVelocity(reflection.x, reflection.y);
                 
-                // Move pod just outside collision
+                // Move pod to collision point plus a small offset in the normal direction
                 const pushDistance = 1; // Minimal push to prevent sticking
                 this.pod.behavior.setPosition(
-                    position.x + normal.x * pushDistance,
-                    position.y + normal.y * pushDistance
+                    collisionResult.point.x + normal.x * pushDistance,
+                    collisionResult.point.y + normal.y * pushDistance
                 );
 
                 // Log post-reflection state
@@ -307,7 +315,7 @@ export class MainGameLoop {
                 });
 
                 // Notify barrier of collision
-                barrier.handleCollision(podCenterX, podCenterY, velocity);
+                barrier.handleCollision(position.x, position.y, velocity);
                 
                 // Track collision for rapid collision detection
                 this.handleRapidCollisions();

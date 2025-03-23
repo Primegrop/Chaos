@@ -206,6 +206,124 @@ export class Pod {
             height: Math.max(...ys) - Math.min(...ys)
         };
     }
+
+    getDetailedBounds() {
+        const position = this.behavior.getPosition();
+        const cos = Math.cos(position.angle);
+        const sin = Math.sin(position.angle);
+
+        // Get component configurations
+        const bodyConfig = this.config.body || {};
+        const fuselageConfig = this.config.fuselage || {};
+        const thrusterConfig = this.config.thruster || {};
+        const ttailConfig = this.config.ttail || {};
+
+        const bounds = [];
+
+        // Body bounds - split into two overlapping rectangles
+        const bodyWidth = bodyConfig.width || 20;
+        const bodyHeight = bodyConfig.height || 30;
+        
+        // Forward box - positioned more towards the front
+        bounds.push(this.getRotatedComponentBounds(
+            position,
+            bodyWidth * 1.4,  // 40% wider for better front coverage
+            bodyHeight * 0.8, // 80% of body height
+            -bodyHeight * 0.8, // Shifted up significantly
+            cos,
+            sin
+        ));
+
+        // Rear box - positioned more towards the middle
+        bounds.push(this.getRotatedComponentBounds(
+            position,
+            bodyWidth * 1.1,  // Slightly wider for better coverage
+            bodyHeight * 0.8, // 80% of body height
+            -bodyHeight * 0.2, // Shifted up slightly to be more centered
+            cos,
+            sin
+        ));
+
+        // Fuselage bounds
+        const fuselageWidth = fuselageConfig.width || 8;
+        const fuselageHeight = fuselageConfig.height || 30;
+        const fuselageYOffset = fuselageConfig.yOffset || 15;
+        bounds.push(this.getRotatedComponentBounds(
+            position,
+            fuselageWidth,
+            fuselageHeight,
+            fuselageYOffset,
+            cos,
+            sin
+        ));
+
+        // Thruster/TTail bounds
+        if (ttailConfig.width) {
+            // TTail bounds
+            const ttailWidth = ttailConfig.width;
+            const ttailHeight = ttailConfig.height;
+            const ttailYOffset = ttailConfig.yOffset || 35;
+            bounds.push(this.getRotatedComponentBounds(
+                position,
+                ttailWidth,
+                ttailHeight,
+                ttailYOffset,
+                cos,
+                sin
+            ));
+
+            // TTail cross piece
+            const crossWidth = ttailConfig.crossWidth || 20;
+            const crossHeight = ttailConfig.crossHeight || 8;
+            bounds.push(this.getRotatedComponentBounds(
+                position,
+                crossWidth,
+                crossHeight,
+                ttailYOffset + ttailHeight - crossHeight,
+                cos,
+                sin
+            ));
+        } else {
+            // Regular thruster bounds
+            const thrusterWidth = thrusterConfig.width || 10;
+            const thrusterHeight = thrusterConfig.height || 20;
+            const thrusterYOffset = thrusterConfig.yOffset || 35;
+            bounds.push(this.getRotatedComponentBounds(
+                position,
+                thrusterWidth,
+                thrusterHeight,
+                thrusterYOffset,
+                cos,
+                sin
+            ));
+        }
+
+        return bounds;
+    }
+
+    getRotatedComponentBounds(position, width, height, yOffset, cos, sin) {
+        // Calculate corners of the component rectangle
+        const corners = [
+            {x: -width/2, y: yOffset},
+            {x: width/2, y: yOffset},
+            {x: width/2, y: yOffset + height},
+            {x: -width/2, y: yOffset + height}
+        ].map(point => ({
+            x: position.x + (point.x * cos - point.y * sin),
+            y: position.y + (point.x * sin + point.y * cos)
+        }));
+
+        // Find the bounds of the rotated rectangle
+        const xs = corners.map(p => p.x);
+        const ys = corners.map(p => p.y);
+
+        return {
+            x: Math.min(...xs),
+            y: Math.min(...ys),
+            width: Math.max(...xs) - Math.min(...xs),
+            height: Math.max(...ys) - Math.min(...ys)
+        };
+    }
 }
 
 // Export all necessary classes
