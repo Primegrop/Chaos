@@ -72,8 +72,8 @@ export class MainGameLoop {
         this.debugMode = debugMode;
         this.isRecordingDebug = false; // Add recording state
         
-        // Build number (incremented for perimeter lightning effect)
-        this.buildVersion = 113;
+        // Build number (incremented for uniform brick pattern)
+        this.buildVersion = 115;
         
         // Create build version overlay
         this.createBuildVersionOverlay();
