@@ -72,8 +72,8 @@ export class MainGameLoop {
         this.debugMode = debugMode;
         this.isRecordingDebug = false; // Add recording state
         
-        // Build number (incremented for debug visualization refactor)
-        this.buildVersion = 125;
+        // Build number (incremented for renderBaseScene refactor)
+        this.buildVersion = 126;
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -216,7 +216,13 @@ export class MainGameLoop {
         }
     }
 
-    loop() {
+    /**
+     * Clears the canvas and draws all static objects in the Arena.
+     * This includes the background and any static barriers.
+     * These objects are pre-rendered for performance and only need to be redrawn
+     * when the base scene changes.
+     */
+    renderBaseScene() {
         // Clear the game canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -225,6 +231,11 @@ export class MainGameLoop {
         
         // Draw barriers
         this.ctx.drawImage(this.barriersCanvas, 0, 0);
+    }
+
+    loop() {
+        // Render the base scene
+        this.renderBaseScene();
         
         // Get pod state
         const position = this.pod.behavior.getPosition();
