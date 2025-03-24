@@ -72,8 +72,8 @@ export class MainGameLoop {
         this.debugMode = debugMode;
         this.isRecordingDebug = false; // Add recording state
         
-        // Build number (incremented for collision handling refactor)
-        this.buildVersion = 124;
+        // Build number (incremented for debug visualization refactor)
+        this.buildVersion = 125;
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -252,43 +252,8 @@ export class MainGameLoop {
         // Draw pod
         this.pod.draw(this.ctx);
         
-        // Enhanced debug visualization
-        if (this.debugMode) {
-            // Draw pod bounds
-            this.drawDebugBounds(this.pod, 'red');
-            
-            // Draw pod center point
-            this.ctx.fillStyle = 'red';
-            this.ctx.beginPath();
-            this.ctx.arc(position.x, position.y, 3, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Draw velocity vector if moving
-            if (velocity.velocityX !== 0 || velocity.velocityY !== 0) {
-                // Draw current velocity vector
-                this.ctx.strokeStyle = 'yellow';
-                this.ctx.beginPath();
-                this.ctx.moveTo(position.x, position.y);
-                this.ctx.lineTo(
-                    position.x + velocity.velocityX * 10,
-                    position.y + velocity.velocityY * 10
-                );
-                this.ctx.stroke();
-            }
-
-            // Draw barrier centers and normals during collision
-            for (const barrier of this.barriers) {
-                const barrierBounds = barrier.getBounds();
-                const barrierCenterX = barrierBounds.x + barrierBounds.width / 2;
-                const barrierCenterY = barrierBounds.y + barrierBounds.height / 2;
-                
-                // Draw barrier center
-                this.ctx.fillStyle = 'blue';
-                this.ctx.beginPath();
-                this.ctx.arc(barrierCenterX, barrierCenterY, 3, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-        }
+        // Draw debug visualizations
+        this.drawDebugVisualizations(position, velocity);
         
         // Request next frame
         requestAnimationFrame(() => this.loop());
@@ -490,6 +455,45 @@ export class MainGameLoop {
                 // Track collision for rapid collision detection
                 this.handleRapidCollisions();
                 break;
+            }
+        }
+    }
+
+    drawDebugVisualizations(position, velocity) {
+        if (this.debugMode) {
+            // Draw pod bounds
+            this.drawDebugBounds(this.pod, 'red');
+            
+            // Draw pod center point
+            this.ctx.fillStyle = 'red';
+            this.ctx.beginPath();
+            this.ctx.arc(position.x, position.y, 3, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw velocity vector if moving
+            if (velocity.velocityX !== 0 || velocity.velocityY !== 0) {
+                // Draw current velocity vector
+                this.ctx.strokeStyle = 'yellow';
+                this.ctx.beginPath();
+                this.ctx.moveTo(position.x, position.y);
+                this.ctx.lineTo(
+                    position.x + velocity.velocityX * 10,
+                    position.y + velocity.velocityY * 10
+                );
+                this.ctx.stroke();
+            }
+
+            // Draw barrier centers and normals during collision
+            for (const barrier of this.barriers) {
+                const barrierBounds = barrier.getBounds();
+                const barrierCenterX = barrierBounds.x + barrierBounds.width / 2;
+                const barrierCenterY = barrierBounds.y + barrierBounds.height / 2;
+                
+                // Draw barrier center
+                this.ctx.fillStyle = 'blue';
+                this.ctx.beginPath();
+                this.ctx.arc(barrierCenterX, barrierCenterY, 3, 0, Math.PI * 2);
+                this.ctx.fill();
             }
         }
     }
