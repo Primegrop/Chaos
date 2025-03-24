@@ -297,11 +297,19 @@ export class MainGameLoop {
                 this.pod.behavior.properties.setVelocity(reflection.x, reflection.y);
                 
                 // Move pod to collision point plus a small offset in the normal direction
-                const pushDistance = 1; // Minimal push to prevent sticking
-                this.pod.behavior.setPosition(
-                    collisionResult.point.x + normal.x * pushDistance,
-                    collisionResult.point.y + normal.y * pushDistance
-                );
+                const pushDistance = 2; // Increased push distance to prevent sticking
+                const newX = collisionResult.point.x + normal.x * pushDistance;
+                const newY = collisionResult.point.y + normal.y * pushDistance;
+                
+                // Ensure we're not pushing the pod further into the wall
+                const currentPos = this.pod.behavior.getPosition();
+                const dx = newX - currentPos.x;
+                const dy = newY - currentPos.y;
+                
+                // Only move if we're not pushing further into the wall
+                if (normal.x * dx >= 0 && normal.y * dy >= 0) {
+                    this.pod.behavior.setPosition(newX, newY);
+                }
 
                 // Log post-reflection state
                 const postReflectionState = {
