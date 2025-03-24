@@ -72,8 +72,8 @@ export class MainGameLoop {
         this.debugMode = debugMode;
         this.isRecordingDebug = false; // Add recording state
         
-        // Build number (incremented for adjusted pod body collision boxes)
-        this.buildVersion = 123;
+        // Build number (incremented for collision handling refactor)
+        this.buildVersion = 124;
         
         // Create build version overlay
         this.createBuildVersionOverlay();
@@ -219,21 +219,24 @@ export class MainGameLoop {
     loop() {
         // Clear the game canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Draw the pre-rendered background and barriers
+        
+        // Draw background
         this.ctx.drawImage(this.bgCanvas, 0, 0);
+        
+        // Draw barriers
         this.ctx.drawImage(this.barriersCanvas, 0, 0);
         
-        // Get current pod state and log it
+        // Get pod state
         const position = this.pod.behavior.getPosition();
         const velocity = this.pod.behavior.getState();
         
+        // Log pod state
         this.debugLog('Pre-update Pod State:', {
             position: { x: position.x, y: position.y },
             velocity: { x: velocity.velocityX, y: velocity.velocityY }
         });
 
-        // First update pod normally
+        // Update pod
         this.pod.update(this.canvas.width, this.canvas.height);
         
         // Log post-update state
@@ -243,93 +246,8 @@ export class MainGameLoop {
         };
         this.debugLog('Post-update Pod State:', postUpdate);
         
-        // Then check for collisions
-        for (const barrier of this.barriers) {
-            // Use detailed collision detection instead of simple overlap
-            const collisionResult = this.collisionDetector.detectCollision(
-                this.pod,
-                { x: velocity.velocityX, y: velocity.velocityY },
-                barrier
-            );
-
-            this.debugLog('Collision Check:', {
-                podBounds: this.pod.getBounds(),
-                barrierBounds: barrier.getBounds(),
-                collisionResult
-            });
-
-            if (collisionResult.collided) {
-                this.debugLog('COLLISION DETECTED!');
-                
-                // Use the collision normal from the detailed detection
-                const normal = collisionResult.normal;
-
-                this.debugLog('Collision Details:', {
-                    podCenter: { x: position.x, y: position.y },
-                    collisionPoint: collisionResult.point,
-                    normal
-                });
-
-                // Calculate reflection
-                const speed = Math.sqrt(velocity.velocityX ** 2 + velocity.velocityY ** 2);
-                const restitution = Math.min(0.8, 0.5 + (speed * 0.1));
-                
-                const reflection = calculateVectorReflection(
-                    { x: velocity.velocityX, y: velocity.velocityY },
-                    normal,
-                    restitution
-                );
-
-                this.debugLog('Reflection Calculation:', {
-                    incomingVelocity: { x: velocity.velocityX, y: velocity.velocityY },
-                    normal,
-                    restitution,
-                    reflection
-                });
-
-                // Store pre-reflection state
-                const preReflectionState = {
-                    position: { ...this.pod.behavior.getPosition() },
-                    velocity: { ...this.pod.behavior.getState() }
-                };
-
-                // Apply reflection velocity
-                this.pod.behavior.properties.setVelocity(reflection.x, reflection.y);
-                
-                // Move pod to collision point plus a small offset in the normal direction
-                const pushDistance = 2; // Increased push distance to prevent sticking
-                const newX = collisionResult.point.x + normal.x * pushDistance;
-                const newY = collisionResult.point.y + normal.y * pushDistance;
-                
-                // Ensure we're not pushing the pod further into the wall
-                const currentPos = this.pod.behavior.getPosition();
-                const dx = newX - currentPos.x;
-                const dy = newY - currentPos.y;
-                
-                // Only move if we're not pushing further into the wall
-                if (normal.x * dx >= 0 && normal.y * dy >= 0) {
-                    this.pod.behavior.setPosition(newX, newY);
-                }
-
-                // Log post-reflection state
-                const postReflectionState = {
-                    position: this.pod.behavior.getPosition(),
-                    velocity: this.pod.behavior.getState()
-                };
-
-                this.debugLog('Collision Response:', {
-                    before: preReflectionState,
-                    after: postReflectionState
-                });
-
-                // Notify barrier of collision
-                barrier.handleCollision(position.x, position.y, velocity);
-                
-                // Track collision for rapid collision detection
-                this.handleRapidCollisions();
-                break;
-            }
-        }
+        // Check for collisions
+        this.checkForCollisions(position, velocity);
         
         // Draw pod
         this.pod.draw(this.ctx);
@@ -371,9 +289,9 @@ export class MainGameLoop {
                 this.ctx.fill();
             }
         }
-
-        // Schedule next frame
-        this.animationFrameId = requestAnimationFrame(this.loop);
+        
+        // Request next frame
+        requestAnimationFrame(() => this.loop());
     }
 
     // Method to update game objects
@@ -482,6 +400,96 @@ export class MainGameLoop {
                 console.log(message, JSON.stringify(data, null, 2));
             } else {
                 console.log(message);
+            }
+        }
+    }
+
+    checkForCollisions(position, velocity) {
+        // Check for collisions
+        for (const barrier of this.barriers) {
+            // Use detailed collision detection instead of simple overlap
+            const collisionResult = this.collisionDetector.detectCollision(
+                this.pod,
+                { x: velocity.velocityX, y: velocity.velocityY },
+                barrier
+            );
+
+            this.debugLog('Collision Check:', {
+                podBounds: this.pod.getBounds(),
+                barrierBounds: barrier.getBounds(),
+                collisionResult
+            });
+
+            if (collisionResult.collided) {
+                this.debugLog('COLLISION DETECTED!');
+                
+                // Use the collision normal from the detailed detection
+                const normal = collisionResult.normal;
+
+                this.debugLog('Collision Details:', {
+                    podCenter: { x: position.x, y: position.y },
+                    collisionPoint: collisionResult.point,
+                    normal
+                });
+
+                // Calculate reflection
+                const speed = Math.sqrt(velocity.velocityX ** 2 + velocity.velocityY ** 2);
+                const restitution = Math.min(0.8, 0.5 + (speed * 0.1));
+                
+                const reflection = calculateVectorReflection(
+                    { x: velocity.velocityX, y: velocity.velocityY },
+                    normal,
+                    restitution
+                );
+
+                this.debugLog('Reflection Calculation:', {
+                    incomingVelocity: { x: velocity.velocityX, y: velocity.velocityY },
+                    normal,
+                    restitution,
+                    reflection
+                });
+
+                // Store pre-reflection state
+                const preReflectionState = {
+                    position: { ...this.pod.behavior.getPosition() },
+                    velocity: { ...this.pod.behavior.getState() }
+                };
+
+                // Apply reflection velocity
+                this.pod.behavior.properties.setVelocity(reflection.x, reflection.y);
+                
+                // Move pod to collision point plus a small offset in the normal direction
+                const pushDistance = 2; // Increased push distance to prevent sticking
+                const newX = collisionResult.point.x + normal.x * pushDistance;
+                const newY = collisionResult.point.y + normal.y * pushDistance;
+                
+                // Ensure we're not pushing the pod further into the wall
+                const currentPos = this.pod.behavior.getPosition();
+                const dx = newX - currentPos.x;
+                const dy = newY - currentPos.y;
+                
+                // Only move if we're not pushing further into the wall
+                if (normal.x * dx >= 0 && normal.y * dy >= 0) {
+                    this.pod.behavior.setPosition(newX, newY);
+                }
+
+                // Log post-reflection state
+                const postReflectionState = {
+                    position: this.pod.behavior.getPosition(),
+                    velocity: this.pod.behavior.getState()
+                };
+
+                this.debugLog('Collision Response:', {
+                    before: preReflectionState,
+                    after: postReflectionState
+                });
+
+                // Notify barrier of collision
+                barrier.handleCollision(position.x, position.y, velocity);
+                
+                // Track collision for rapid collision detection
+                this.handleRapidCollisions();
+                break;
             }
         }
     }
