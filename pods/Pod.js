@@ -178,32 +178,14 @@ export class Pod {
 
     getBounds() {
         const position = this.behavior.getPosition();
-        const size = 112; // Round up to nearest number divisible by 4 for easy centering
-
-        // Calculate rotated bounds
-        const cos = Math.cos(position.angle);
-        const sin = Math.sin(position.angle);
-
-        // Calculate corners of the square
-        const corners = [
-            {x: -size/2, y: -size/2},
-            {x: size/2, y: -size/2},
-            {x: size/2, y: size/2},
-            {x: -size/2, y: size/2}
-        ].map(point => ({
-            x: position.x + (point.x * cos - point.y * sin),
-            y: position.y + (point.x * sin + point.y * cos)
-        }));
-
-        // Find the bounds of the rotated square
-        const xs = corners.map(p => p.x);
-        const ys = corners.map(p => p.y);
-
+        const size = 121; // Pod's maximum dimension (118) + 3 pixels
+        
+        // Return a square centered on the pod's position
         return {
-            x: Math.min(...xs),
-            y: Math.min(...ys),
-            width: Math.max(...xs) - Math.min(...xs),
-            height: Math.max(...ys) - Math.min(...ys)
+            x: position.x - size/2,
+            y: position.y - size/2,
+            width: size,
+            height: size
         };
     }
 

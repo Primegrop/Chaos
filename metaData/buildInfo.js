@@ -5,13 +5,13 @@
 
 export const buildInfo = {
     // Current build version of the game
-    buildVersion: 126,
+    buildVersion: 136,
     
     // Build date (will be useful for future metadata)
     buildDate: new Date().toISOString(),
     
     // Build description (can be updated with each version)
-    description: "Refactored game loop with improved collision handling and debug visualization"
+    description: "Fixed collision handling with proper speed-based responses and safety checks"
 };
 
 export default buildInfo; 

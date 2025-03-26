@@ -4,6 +4,8 @@ import AudioManager from '../../ambience/audio/AudioManager.js';
 import { Pod } from '../../pods/Pod.js';
 import { calculateSimpleReflection, drawReflectionDebug } from '../VeloReflect/collisionReflectCalc.js';
 import { calculateVectorReflection } from '../VeloReflect/collisionReflectCalc.js';
+import BrickWall from '../../ambience/barriers/BrickWall.js';
+import buildInfo from '../../metaData/buildInfo.js';
 
 export class MainGameLoop {
     constructor(canvas, background, pod, barriers = [], debugMode = true) {
@@ -70,62 +72,40 @@ export class MainGameLoop {
         
         // Debug mode
         this.debugMode = debugMode;
-        this.isRecordingDebug = false; // Add recording state
+        this.isRecordingDebug = false;
         
-        // Build number (incremented for renderBaseScene refactor)
-        this.buildVersion = 126;
+        // Get build version from metadata
+        this.buildVersion = buildInfo.buildVersion;
         
         // Create build version overlay
-        this.createBuildVersionOverlay();
+        this.buildVersionOverlay = document.createElement('div');
+        this.buildVersionOverlay.style.position = 'absolute';
+        this.buildVersionOverlay.style.top = '10px';
+        this.buildVersionOverlay.style.left = '10px';
+        this.buildVersionOverlay.style.color = 'white';
+        this.buildVersionOverlay.style.fontFamily = 'monospace';
+        this.buildVersionOverlay.style.fontSize = '12px';
+        this.buildVersionOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        this.buildVersionOverlay.style.padding = '5px';
+        this.buildVersionOverlay.style.borderRadius = '3px';
+        this.buildVersionOverlay.textContent = `Build: ${this.buildVersion}`;
+        document.body.appendChild(this.buildVersionOverlay);
         
         // Create debug control overlay
         this.createDebugControls();
         
-        // Collision tracking and thrust lockout
-        this.recentCollisions = [];
+        // Thrust lockout tracking
         this.thrustLocked = false;
         this.thrustLockoutEndTime = 0;
-        this.lastCollisionTime = 0;
-        this.lockoutStartTime = 0; // For tracking lockout duration
         
         // Bind methods
         this.loop = this.loop.bind(this);
-        this.handleRapidCollisions = this.handleRapidCollisions.bind(this);
         this.checkThrustLockout = this.checkThrustLockout.bind(this);
         
         // Animation frame ID for cleanup
         this.animationFrameId = null;
 
         this.debug = false;
-    }
-
-    createBuildVersionOverlay() {
-        // Create overlay div if it doesn't exist
-        let overlay = document.getElementById('buildVersionOverlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'buildVersionOverlay';
-            
-            // Style the overlay
-            overlay.style.position = 'fixed';
-            overlay.style.top = '10px';
-            overlay.style.left = '10px';
-            overlay.style.color = '#FF0000';
-            overlay.style.fontFamily = 'Arial, sans-serif';
-            overlay.style.fontSize = '20px';
-            overlay.style.fontWeight = 'bold';
-            overlay.style.zIndex = '1000';
-            overlay.style.pointerEvents = 'none'; // Make it non-interactive
-            
-            // Set the build version text
-            overlay.textContent = `Build: ${this.buildVersion}`;
-            
-            // Add it to the document body
-            document.body.appendChild(overlay);
-        } else {
-            // Update existing overlay
-            overlay.textContent = `Build: ${this.buildVersion}`;
-        }
     }
 
     createDebugControls() {
@@ -233,32 +213,158 @@ export class MainGameLoop {
         this.ctx.drawImage(this.barriersCanvas, 0, 0);
     }
 
+    detectCollisionWithBarriers(position, velocity) {
+        for (const barrier of this.barriers) {
+            const collisionResult = this.collisionDetector.detectCollision(
+                this.pod,
+                { x: velocity.velocityX, y: velocity.velocityY },
+                barrier
+            );
+
+            if (collisionResult.collided) {
+                return { barrier, collisionResult };
+            }
+        }
+        return null;
+    }
+
+    handleCollisionResponse(position, velocity, collisionResult, barrier) {
+        const speed = Math.sqrt(velocity.velocityX ** 2 + velocity.velocityY ** 2);
+        const HIGH_SPEED_THRESHOLD = 3;
+        const LOCKOUT_DURATION = 3000; // 3 seconds in milliseconds
+        const normal = collisionResult.normal;
+        
+        if (speed > HIGH_SPEED_THRESHOLD) {
+            // High speed collision: reflect and lock thrust
+            const reflection = calculateVectorReflection(
+                { x: velocity.velocityX, y: velocity.velocityY },
+                normal,
+                0.8 // Fixed restitution for high-speed collisions
+            );
+            
+            this.pod.behavior.properties.setVelocity(reflection.x, reflection.y);
+            
+            // Lock thrust for 3 seconds
+            this.thrustLocked = true;
+            this.thrustLockoutEndTime = performance.now() + LOCKOUT_DURATION;
+            this.pod.behavior.isThrusting = false;
+            
+            console.log(`High speed collision (${speed.toFixed(2)}) - Reflecting and locking thrust for 3s`);
+        } else {
+            // Low speed collision: zero out appropriate velocity component
+            const currentVelocity = this.pod.behavior.getState();
+            
+            if (Math.abs(normal.x) > Math.abs(normal.y)) {
+                // Vertical wall - zero out horizontal velocity
+                this.pod.behavior.properties.setVelocity(0, currentVelocity.velocityY);
+                console.log('Low speed collision with vertical wall - zeroing horizontal velocity');
+            } else {
+                // Horizontal wall - zero out vertical velocity
+                this.pod.behavior.properties.setVelocity(currentVelocity.velocityX, 0);
+                console.log('Low speed collision with horizontal wall - zeroing vertical velocity');
+            }
+        }
+
+        // Always push pod away from collision point to prevent sticking
+        const pushDistance = 10; // Increased from 5 to 10 for better separation
+        const newX = position.x + normal.x * pushDistance;
+        const newY = position.y + normal.y * pushDistance;
+        
+        // Verify the new position is safe
+        const testBounds = {
+            x: this.pod.getBounds().x + normal.x * pushDistance,
+            y: this.pod.getBounds().y + normal.y * pushDistance,
+            width: this.pod.getBounds().width,
+            height: this.pod.getBounds().height
+        };
+        
+        let isSafe = true;
+        for (const b of this.barriers) {
+            if (this.collisionHandler.isOverlapping(testBounds, b.getBounds())) {
+                isSafe = false;
+                break;
+            }
+        }
+        
+        if (isSafe) {
+            this.pod.behavior.setPosition(newX, newY);
+        } else {
+            // If not safe, try a larger push
+            const emergencyPush = 20;
+            this.pod.behavior.setPosition(
+                position.x + normal.x * emergencyPush,
+                position.y + normal.y * emergencyPush
+            );
+        }
+
+        // Notify barrier of collision for visual/audio feedback
+        barrier.handleCollision(position.x, position.y, velocity);
+    }
+
+    checkThrustLockout() {
+        const now = performance.now();
+        if (this.thrustLocked && now >= this.thrustLockoutEndTime) {
+            console.log('Thrust lockout ended');
+            this.thrustLocked = false;
+            this.thrustLockoutEndTime = 0;
+        }
+    }
+
     loop() {
         // Render the base scene
         this.renderBaseScene();
         
-        // Get pod state
+        // Get current pod state
         const position = this.pod.behavior.getPosition();
         const velocity = this.pod.behavior.getState();
         
-        // Log pod state
-        this.debugLog('Pre-update Pod State:', {
-            position: { x: position.x, y: position.y },
-            velocity: { x: velocity.velocityX, y: velocity.velocityY }
-        });
-
-        // Update pod
-        this.pod.update(this.canvas.width, this.canvas.height);
+        // Calculate intended movement
+        const dt = 1/60; // Assuming 60fps
+        const intendedX = position.x + velocity.velocityX * dt;
+        const intendedY = position.y + velocity.velocityY * dt;
         
-        // Log post-update state
-        const postUpdate = {
-            position: this.pod.behavior.getPosition(),
-            velocity: this.pod.behavior.getState()
-        };
-        this.debugLog('Post-update Pod State:', postUpdate);
+        // Use continuous collision detection with multiple steps
+        const STEPS = 4; // Check 4 points along the movement path
+        let finalX = position.x;
+        let finalY = position.y;
+        let hadCollision = false;
         
-        // Check for collisions
-        this.checkForCollisions(position, velocity);
+        for (let i = 1; i <= STEPS; i++) {
+            const t = i / STEPS;
+            const checkX = position.x + (intendedX - position.x) * t;
+            const checkY = position.y + (intendedY - position.y) * t;
+            
+            // Check for collision at this step
+            const stepVelocity = {
+                velocityX: velocity.velocityX * (1 - (i-1)/STEPS),
+                velocityY: velocity.velocityY * (1 - (i-1)/STEPS)
+            };
+            
+            const collision = this.detectCollisionWithBarriers(
+                { x: checkX, y: checkY, angle: position.angle },
+                stepVelocity
+            );
+            
+            if (collision) {
+                hadCollision = true;
+                // Handle collision response based on speed
+                this.handleCollisionResponse(
+                    { x: checkX, y: checkY },
+                    stepVelocity,
+                    collision.collisionResult,
+                    collision.barrier
+                );
+                break;
+            } else {
+                finalX = checkX;
+                finalY = checkY;
+            }
+        }
+        
+        if (!hadCollision) {
+            // No collision found, safe to update normally
+            this.pod.update(this.canvas.width, this.canvas.height);
+        }
         
         // Draw pod
         this.pod.draw(this.ctx);
@@ -266,8 +372,11 @@ export class MainGameLoop {
         // Draw debug visualizations
         this.drawDebugVisualizations(position, velocity);
         
+        // Check thrust lockout
+        this.checkThrustLockout();
+        
         // Request next frame
-        requestAnimationFrame(() => this.loop());
+        this.animationFrameId = requestAnimationFrame(() => this.loop());
     }
 
     // Method to update game objects
@@ -314,61 +423,6 @@ export class MainGameLoop {
         }
     }
 
-    // Track collision and check for lockout
-    handleRapidCollisions() {
-        const now = performance.now();
-        const COLLISION_WINDOW = 2000; // 2 second window for rapid collisions
-        const LOCKOUT_DURATION = 2000; // 2 second lockout for 2 hits
-        
-        // Add current collision time
-        this.recentCollisions.push(now);
-        
-        // Remove collisions outside the window
-        this.recentCollisions = this.recentCollisions.filter(time => 
-            now - time < COLLISION_WINDOW
-        );
-        
-        // Check for two or more collisions
-        if (this.recentCollisions.length >= 2 && !this.thrustLocked) {
-            console.log('Two collisions detected - activating warning lockout');
-            this.thrustLocked = true;
-            this.thrustLockoutEndTime = now + LOCKOUT_DURATION;
-            this.lockoutStartTime = now;
-            
-            // Stop all pod movement
-            if (this.pod.behavior) {
-                this.pod.behavior.properties.setVelocity(0, 0);
-                this.pod.behavior.isThrusting = false;
-            } else {
-                this.pod.velocityX = 0;
-                this.pod.velocityY = 0;
-                this.pod.isThrusting = false;
-            }
-            
-            // Reset collision counter
-            this.recentCollisions = [];
-        }
-    }
-
-    // Check if thrust is locked
-    checkThrustLockout() {
-        if (this.thrustLocked) {
-            const now = performance.now();
-            const elapsedTime = now - this.lockoutStartTime;
-            
-            if (now >= this.thrustLockoutEndTime) {
-                console.log(`Thrust lockout ended after ${elapsedTime}ms`);
-                this.thrustLocked = false;
-                this.recentCollisions = [];
-                this.lockoutStartTime = 0;
-            } else {
-                console.log(`Thrust still locked - ${elapsedTime}ms elapsed, ${this.thrustLockoutEndTime - now}ms remaining`);
-            }
-            return this.thrustLocked;
-        }
-        return false;
-    }
-
     // Modify the logging function to only log when recording is enabled
     debugLog(message, data) {
         if (this.debugMode && this.isRecordingDebug) {
@@ -376,96 +430,6 @@ export class MainGameLoop {
                 console.log(message, JSON.stringify(data, null, 2));
             } else {
                 console.log(message);
-            }
-        }
-    }
-
-    checkForCollisions(position, velocity) {
-        // Check for collisions
-        for (const barrier of this.barriers) {
-            // Use detailed collision detection instead of simple overlap
-            const collisionResult = this.collisionDetector.detectCollision(
-                this.pod,
-                { x: velocity.velocityX, y: velocity.velocityY },
-                barrier
-            );
-
-            this.debugLog('Collision Check:', {
-                podBounds: this.pod.getBounds(),
-                barrierBounds: barrier.getBounds(),
-                collisionResult
-            });
-
-            if (collisionResult.collided) {
-                this.debugLog('COLLISION DETECTED!');
-                
-                // Use the collision normal from the detailed detection
-                const normal = collisionResult.normal;
-
-                this.debugLog('Collision Details:', {
-                    podCenter: { x: position.x, y: position.y },
-                    collisionPoint: collisionResult.point,
-                    normal
-                });
-
-                // Calculate reflection
-                const speed = Math.sqrt(velocity.velocityX ** 2 + velocity.velocityY ** 2);
-                const restitution = Math.min(0.8, 0.5 + (speed * 0.1));
-                
-                const reflection = calculateVectorReflection(
-                    { x: velocity.velocityX, y: velocity.velocityY },
-                    normal,
-                    restitution
-                );
-
-                this.debugLog('Reflection Calculation:', {
-                    incomingVelocity: { x: velocity.velocityX, y: velocity.velocityY },
-                    normal,
-                    restitution,
-                    reflection
-                });
-
-                // Store pre-reflection state
-                const preReflectionState = {
-                    position: { ...this.pod.behavior.getPosition() },
-                    velocity: { ...this.pod.behavior.getState() }
-                };
-
-                // Apply reflection velocity
-                this.pod.behavior.properties.setVelocity(reflection.x, reflection.y);
-                
-                // Move pod to collision point plus a small offset in the normal direction
-                const pushDistance = 2; // Increased push distance to prevent sticking
-                const newX = collisionResult.point.x + normal.x * pushDistance;
-                const newY = collisionResult.point.y + normal.y * pushDistance;
-                
-                // Ensure we're not pushing the pod further into the wall
-                const currentPos = this.pod.behavior.getPosition();
-                const dx = newX - currentPos.x;
-                const dy = newY - currentPos.y;
-                
-                // Only move if we're not pushing further into the wall
-                if (normal.x * dx >= 0 && normal.y * dy >= 0) {
-                    this.pod.behavior.setPosition(newX, newY);
-                }
-
-                // Log post-reflection state
-                const postReflectionState = {
-                    position: this.pod.behavior.getPosition(),
-                    velocity: this.pod.behavior.getState()
-                };
-
-                this.debugLog('Collision Response:', {
-                    before: preReflectionState,
-                    after: postReflectionState
-                });
-
-                // Notify barrier of collision
-                barrier.handleCollision(position.x, position.y, velocity);
-                
-                // Track collision for rapid collision detection
-                this.handleRapidCollisions();
-                break;
             }
         }
     }
